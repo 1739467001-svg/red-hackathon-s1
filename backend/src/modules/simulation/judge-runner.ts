@@ -30,7 +30,7 @@ export class JudgeRunner {
       role: 'assistant',
       content: `[${leader.character.name}]: ${presentation}`,
     });
-    onMessage({
+    await onMessage({
       groupId: group.groupId,
       agentId: leader.character.id,
       agentName: leader.character.name,
@@ -47,9 +47,10 @@ export class JudgeRunner {
       [...history, { role: 'user', content: selectionPrompt }],
     );
 
-    let activeJudges = judgeList.filter((j) =>
-      selectedNames.includes(j.name),
-    );
+    let activeJudges = judgeList.filter((j) => {
+      const nameVariants = [j.name, ...j.name.split(/[（()]/)]
+      return nameVariants.some(n => n.length > 0 && selectedNames.includes(n.trim()));
+    });
     if (activeJudges.length === 0) {
       activeJudges = [judgeList[0], judgeList[1]]; // fallback
     }
@@ -67,7 +68,7 @@ export class JudgeRunner {
         role: 'assistant',
         content: `[评委${judge.name}]: ${question}`,
       });
-      onMessage({
+      await onMessage({
         groupId: group.groupId,
         agentId: judge.id,
         agentName: judge.name,
@@ -86,7 +87,7 @@ export class JudgeRunner {
         role: 'assistant',
         content: `[${answerer.character.name}]: ${answer}`,
       });
-      onMessage({
+      await onMessage({
         groupId: group.groupId,
         agentId: answerer.character.id,
         agentName: answerer.character.name,
@@ -108,7 +109,7 @@ export class JudgeRunner {
         `你是${judge.name}，${judge.title}。${judge.personality}。评审风格：${judge.judgingStyle}。关注：${judge.focusAreas.join('、')}。`,
         [...history, { role: 'user', content: scorePrompt }],
       );
-      onMessage({
+      await onMessage({
         groupId: group.groupId,
         agentId: judge.id,
         agentName: judge.name,

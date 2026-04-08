@@ -102,8 +102,15 @@ export class SimulationService {
     // Get phase 1 summaries (last message from each group's leader in phase 1)
     const bpResults = await Promise.all(
       runners.map(async (r) => {
+        const group = r.getGroup();
+        const leader = group.members.find((m) => m.isLeader);
         const lastMsg = await this.messageRepo.findOne({
-          where: { simulationId, groupId: r.getGroup().groupId, phase: 1 },
+          where: {
+            simulationId,
+            groupId: group.groupId,
+            phase: 1,
+            ...(leader ? { agentId: leader.characterId } : {}),
+          },
           order: { createdAt: 'DESC' },
         });
         return r.runPhase2(lastMsg?.content || '', onMessage);

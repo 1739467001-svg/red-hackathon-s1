@@ -15,7 +15,7 @@ export type MessageCallback = (msg: {
   agentRole: string;
   content: string;
   phase: number;
-}) => void;
+}) => Promise<void>;
 
 export class PhaseExecutor {
   constructor(
@@ -131,7 +131,7 @@ export class PhaseExecutor {
       role: 'assistant',
       content: `[${leader.character.name}]: ${leaderOpening}`,
     });
-    onMessage({
+    await onMessage({
       groupId,
       agentId: leader.character.id,
       agentName: leader.character.name,
@@ -150,7 +150,7 @@ export class PhaseExecutor {
         role: 'assistant',
         content: `[${member.character.name}]: ${question}`,
       });
-      onMessage({
+      await onMessage({
         groupId,
         agentId: member.character.id,
         agentName: member.character.name,
@@ -170,7 +170,7 @@ export class PhaseExecutor {
         role: 'assistant',
         content: `[${agent.character.name}]: ${response}`,
       });
-      onMessage({
+      await onMessage({
         groupId,
         agentId: agent.character.id,
         agentName: agent.character.name,
@@ -189,7 +189,7 @@ export class PhaseExecutor {
       role: 'assistant',
       content: `[${leader.character.name}]: ${summary}`,
     });
-    onMessage({
+    await onMessage({
       groupId,
       agentId: leader.character.id,
       agentName: leader.character.name,
@@ -221,7 +221,7 @@ export class PhaseExecutor {
       role: 'assistant',
       content: `[${leader.character.name}]: ${assignment}`,
     });
-    onMessage({
+    await onMessage({
       groupId,
       agentId: leader.character.id,
       agentName: leader.character.name,
@@ -240,7 +240,7 @@ export class PhaseExecutor {
         role: 'assistant',
         content: `[${member.character.name}]: ${confirm}`,
       });
-      onMessage({
+      await onMessage({
         groupId,
         agentId: member.character.id,
         agentName: member.character.name,
@@ -260,7 +260,7 @@ export class PhaseExecutor {
         role: 'assistant',
         content: `[${member.character.name}]: ${section}`,
       });
-      onMessage({
+      await onMessage({
         groupId,
         agentId: member.character.id,
         agentName: member.character.name,
@@ -277,7 +277,7 @@ export class PhaseExecutor {
 {"projectName":"项目名","problem":"问题与痛点","solution":"解决方案","targetUsers":"目标用户","features":"核心功能","businessModel":"商业模式","advantage":"竞争优势"}
 只输出JSON，不要其他内容。`,
     );
-    onMessage({
+    await onMessage({
       groupId,
       agentId: leader.character.id,
       agentName: leader.character.name,
