@@ -1,11 +1,30 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Semaphore } from '../../common/semaphore';
 
 @Injectable()
 export class SearchService {
   private readonly logger = new Logger(SearchService.name);
   private cache = new Map<string, string>();
-  private readonly semaphore = new Semaphore(3);
+  private readonly semaphore: Semaphore;
+  private readonly timeoutMs: number;
+  private readonly cacheMaxSize: number;
+  private readonly resultsCount: number;
+
+  constructor(private configService: ConfigService) {
+    this.semaphore = new Semaphore(
+      this.configService.get<number>('SEARCH_MAX_CONCURRENT', 3),
+    );
+    this.timeoutMs = this.configService.get<number>('SEARCH_TIMEOUT_MS', 10000);
+    this.cacheMaxSize = this.configService.get<number>(
+      'SEARCH_CACHE_MAX_SIZE',
+      100,
+    );
+    this.resultsCount = this.configService.get<number>(
+      'SEARCH_RESULTS_COUNT',
+      5,
+    );
+  }
 
   async search(query: string): Promise<string> {
     const cached = this.cache.get(query);
@@ -15,7 +34,7 @@ export class SearchService {
     try {
       const result = await this.fetchResults(query);
       this.cache.set(query, result);
-      if (this.cache.size > 100) {
+      if (this.cache.size > this.cacheMaxSize) {
         const firstKey = this.cache.keys().next().value as string | undefined;
         if (firstKey) this.cache.delete(firstKey);
       }
@@ -31,7 +50,7 @@ export class SearchService {
 
   private async fetchResults(query: string): Promise<string> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
 
     try {
       const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
@@ -66,7 +85,7 @@ export class SearchService {
       snippets.push(this.stripHtml(match[1]).trim());
     }
 
-    const count = Math.min(5, titles.length);
+    const count = Math.min(this.resultsCount, titles.length);
     for (let i = 0; i < count; i++) {
       const title = titles[i] || '';
       const snippet = snippets[i] || '';

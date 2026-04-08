@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Subject, Observable } from 'rxjs';
@@ -30,6 +31,7 @@ export class SimulationService {
     @InjectRepository(Result) private resultRepo: Repository<Result>,
     private llmService: LlmService,
     private searchService: SearchService,
+    private configService: ConfigService,
   ) {}
 
   async startSimulation(ideas: string[]): Promise<{ simulationId: string }> {
@@ -38,7 +40,11 @@ export class SimulationService {
       this.llmService,
       this.searchService,
     );
-    const groups = phaseExecutor.executePhase0(characters, ideas);
+    const groupCount = this.configService.get<number>(
+      'SIMULATION_GROUP_COUNT',
+      4,
+    );
+    const groups = phaseExecutor.executePhase0(characters, ideas, groupCount);
 
     // 2. Save to DB
     const simulation = this.simulationRepo.create({

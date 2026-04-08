@@ -27,6 +27,7 @@ export class PhaseExecutor {
   executePhase0(
     allCharacters: CharacterData[],
     ideas: string[],
+    groupCount = 4,
   ): GroupAssignment[] {
     const leaderTypes = new Set(['ENTJ', 'ENFJ', 'ESTJ', 'ESTP', 'ENTP']);
     const backendTypes = new Set(['INTJ', 'INTP', 'ISTJ', 'ISTP']);
@@ -71,9 +72,8 @@ export class PhaseExecutor {
       [withRoles[i], withRoles[j]] = [withRoles[j], withRoles[i]];
     }
 
-    // Split into 4 groups of 5
+    // Split into groups
     const groups: GroupAssignment[] = [];
-    const groupCount = 4;
     const groupSize = Math.floor(withRoles.length / groupCount);
 
     for (let g = 0; g < groupCount; g++) {

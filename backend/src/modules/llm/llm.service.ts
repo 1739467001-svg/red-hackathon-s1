@@ -12,9 +12,12 @@ export interface ChatMessage {
 export class LlmService {
   private client: OpenAI;
   private model: string;
-  private readonly semaphore = new Semaphore(6);
+  private readonly semaphore: Semaphore;
 
   constructor(private configService: ConfigService) {
+    this.semaphore = new Semaphore(
+      this.configService.get<number>('LLM_MAX_CONCURRENT', 6),
+    );
     this.client = new OpenAI({
       baseURL: this.configService.getOrThrow('LLM_BASE_URL'),
       apiKey: this.configService.getOrThrow('LLM_API_KEY'),
@@ -29,7 +32,7 @@ export class LlmService {
       const response = await this.client.chat.completions.create({
         model: this.model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
-        max_tokens: 4096,
+        max_tokens: this.configService.get<number>('LLM_MAX_TOKENS', 4096),
       });
       return response.choices[0]?.message?.content || '';
     } finally {
