@@ -10,6 +10,8 @@ export interface GameCanvasProps {
   activeGroupId: number;
   speakingAgentId: string | null;
   speakingText?: string;
+  teamMembers?: { id: string; name: string; textureKey: string; isLeader?: boolean }[];
+  judges?: { id: string; name: string; avatarUrl: string }[];
 }
 
 export function GameCanvas({
@@ -17,12 +19,14 @@ export function GameCanvas({
   activeGroupId,
   speakingAgentId,
   speakingText,
+  teamMembers = [],
+  judges = [],
 }: GameCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<Phaser.Game | null>(null);
   const scenesReadyRef = useRef(false);
+  const arenaInitRef = useRef(false);
 
-  // Helper to get scene instances
   const getTavernScene = useCallback((): TavernScene | null => {
     if (!gameRef.current || !scenesReadyRef.current) return null;
     return gameRef.current.scene.getScene('TavernScene') as TavernScene | null;
@@ -41,7 +45,6 @@ export function GameCanvas({
     let destroyed = false;
 
     const init = async () => {
-      // Dynamic import — Phaser requires DOM
       const PhaserModule = await import('phaser');
       const { TavernScene: TavernSceneClass } = await import('./TavernScene');
       const { ArenaScene: ArenaSceneClass } = await import('./ArenaScene');
@@ -69,7 +72,6 @@ export function GameCanvas({
       game = new PhaserModule.Game(config);
       gameRef.current = game;
 
-      // Wait for first scene to be ready
       game.events.once('ready', () => {
         if (!destroyed) {
           scenesReadyRef.current = true;
@@ -82,6 +84,7 @@ export function GameCanvas({
     return () => {
       destroyed = true;
       scenesReadyRef.current = false;
+      arenaInitRef.current = false;
       if (game) {
         game.destroy(true);
         gameRef.current = null;
@@ -97,16 +100,15 @@ export function GameCanvas({
     const arena = getArenaScene();
 
     if (currentPhase < 3) {
-      // Show tavern, hide arena
       if (tavern && !gameRef.current.scene.isActive('TavernScene')) {
         gameRef.current.scene.start('TavernScene');
       }
       if (arena && gameRef.current.scene.isActive('ArenaScene')) {
         gameRef.current.scene.stop('ArenaScene');
       }
+      arenaInitRef.current = false;
       tavern?.setPhaseIndicator(currentPhase);
     } else {
-      // Show arena, hide tavern
       if (tavern && gameRef.current.scene.isActive('TavernScene')) {
         gameRef.current.scene.stop('TavernScene');
       }
@@ -115,6 +117,21 @@ export function GameCanvas({
       }
     }
   }, [currentPhase, getTavernScene, getArenaScene]);
+
+  // Populate arena with team + judges when phase 3 data arrives
+  useEffect(() => {
+    if (currentPhase < 3) return;
+    const arena = getArenaScene();
+    if (!arena) return;
+
+    if (teamMembers.length > 0 && !arenaInitRef.current) {
+      arena.setTeam(teamMembers);
+      arenaInitRef.current = true;
+    }
+    if (judges.length > 0) {
+      arena.setJudges(judges);
+    }
+  }, [currentPhase, teamMembers, judges, getArenaScene]);
 
   // React to active group changes
   useEffect(() => {

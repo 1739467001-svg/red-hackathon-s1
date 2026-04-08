@@ -3,6 +3,7 @@ import type {
   SimulationMessage,
   GroupInfo,
   GroupResult,
+  TypingAgent,
 } from '@/types/simulation';
 import * as api from '@/services/api';
 import { API_URL } from '@/services/api';
@@ -16,12 +17,15 @@ interface SimulationState {
   activeGroupTab: number;
   isRunning: boolean;
   eventSource: EventSource | null;
+  /** Per-group currently-typing agent (null = no one typing) */
+  typingAgents: Map<number, TypingAgent | null>;
 
   startSimulation: (ideas: string[]) => Promise<void>;
   addMessage: (msg: SimulationMessage) => void;
   setPhase: (phase: number) => void;
   setResults: (results: GroupResult[]) => void;
   setActiveGroupTab: (tab: number) => void;
+  setTypingAgent: (groupId: number, agent: TypingAgent | null) => void;
   connectSSE: (simulationId: string) => void;
   disconnect: () => void;
   reset: () => void;
@@ -36,10 +40,11 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   activeGroupTab: 1,
   isRunning: false,
   eventSource: null,
+  typingAgents: new Map(),
 
   startSimulation: async (ideas: string[]) => {
     const { simulationId } = await api.startSimulation(ideas);
-    set({ simulationId, isRunning: true, messages: new Map(), results: [], currentPhase: 1, activeGroupTab: 1 });
+    set({ simulationId, isRunning: true, messages: new Map(), results: [], currentPhase: 1, activeGroupTab: 1, typingAgents: new Map() });
     get().connectSSE(simulationId);
   },
 
@@ -65,6 +70,14 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
     set({ activeGroupTab: tab });
   },
 
+  setTypingAgent: (groupId: number, agent: TypingAgent | null) => {
+    set((state) => {
+      const next = new Map(state.typingAgents);
+      next.set(groupId, agent);
+      return { typingAgents: next };
+    });
+  },
+
   connectSSE: (simulationId: string) => {
     const existing = get().eventSource;
     if (existing) {
@@ -79,7 +92,9 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
         switch (raw.type) {
           case 'message': {
-            // Transform backend flat format to frontend SimulationMessage
+            // Clear typing indicator for this group when message arrives
+            get().setTypingAgent(raw.groupId, null);
+
             const msg: SimulationMessage = {
               type: 'message',
               groupId: raw.groupId,
@@ -92,9 +107,26 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
                   ? `/avatars/oc-1.jpeg`
                   : `/avatars/oc-${(raw.agentId ?? '').match(/\d+/)?.[0] ?? '1'}.jpeg`,
                 role: raw.agentRole ?? raw.agent?.role ?? '',
+                isLeader: raw.isLeader ?? false,
               },
             };
             get().addMessage(msg);
+            break;
+          }
+          case 'agent_typing': {
+            const groupId = raw.groupId as number;
+            if (raw.isTyping) {
+              get().setTypingAgent(groupId, {
+                groupId,
+                agentId: raw.agentId ?? '',
+                agentName: raw.agentName ?? '',
+                agentRole: raw.agentRole ?? '',
+                isLeader: raw.isLeader ?? false,
+                startedAt: Date.now(),
+              });
+            } else {
+              get().setTypingAgent(groupId, null);
+            }
             break;
           }
           case 'phase_change':
@@ -142,6 +174,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       activeGroupTab: 1,
       isRunning: false,
       eventSource: null,
+      typingAgents: new Map(),
     });
   },
 }));

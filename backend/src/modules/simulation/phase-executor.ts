@@ -13,9 +13,19 @@ export type MessageCallback = (msg: {
   agentId: string;
   agentName: string;
   agentRole: string;
+  isLeader: boolean;
   content: string;
   phase: number;
 }) => Promise<void>;
+
+export type TypingCallback = (msg: {
+  groupId: number;
+  agentId: string;
+  agentName: string;
+  agentRole: string;
+  isLeader: boolean;
+  isTyping: boolean;
+}) => void;
 
 export class PhaseExecutor {
   constructor(
@@ -107,16 +117,30 @@ export class PhaseExecutor {
     groupId: number,
     idea: string,
     onMessage: MessageCallback,
+    onTyping?: TypingCallback,
   ): Promise<void> {
     const history: ChatMessage[] = [];
     const leader = agents.find((a) => a.isLeader)!;
     const members = agents.filter((a) => !a.isLeader);
 
+    const emitTyping = (agent: Agent, isTyping: boolean) => {
+      onTyping?.({
+        groupId,
+        agentId: agent.character.id,
+        agentName: agent.character.name,
+        agentRole: agent.role,
+        isLeader: agent.isLeader,
+        isTyping,
+      });
+    };
+
     // Step 1: Leader presents idea and proposes direction
+    emitTyping(leader, true);
     const leaderOpening = await leader.speak(
       history,
       `你是本组队长。收到的黑客松主题是："${idea}"。请提出你对这个主题的理解和初步方向。`,
     );
+    emitTyping(leader, false);
     history.push({
       role: 'assistant',
       content: `[${leader.character.name}]: ${leaderOpening}`,
@@ -126,16 +150,19 @@ export class PhaseExecutor {
       agentId: leader.character.id,
       agentName: leader.character.name,
       agentRole: leader.role,
+      isLeader: true,
       content: leaderOpening,
       phase: 1,
     });
 
     // Step 2: Each member asks one question (round-robin)
     for (const member of members) {
+      emitTyping(member, true);
       const question = await member.speak(
         history,
         `队长刚才提出了方向，请你从${member.role}的角度提出一个问题或看法。`,
       );
+      emitTyping(member, false);
       history.push({
         role: 'assistant',
         content: `[${member.character.name}]: ${question}`,
@@ -145,6 +172,7 @@ export class PhaseExecutor {
         agentId: member.character.id,
         agentName: member.character.name,
         agentRole: member.role,
+        isLeader: false,
         content: question,
         phase: 1,
       });
@@ -152,10 +180,12 @@ export class PhaseExecutor {
 
     // Step 3: Free discussion - each person picks 1-2 questions to answer
     for (const agent of agents) {
+      emitTyping(agent, true);
       const response = await agent.speak(
         history,
         `请选择之前讨论中的1-2个问题进行回答或补充你的看法。如果需要搜索市场数据，请用 [SEARCH:搜索关键词] 格式。`,
       );
+      emitTyping(agent, false);
       history.push({
         role: 'assistant',
         content: `[${agent.character.name}]: ${response}`,
@@ -165,16 +195,19 @@ export class PhaseExecutor {
         agentId: agent.character.id,
         agentName: agent.character.name,
         agentRole: agent.role,
+        isLeader: agent.isLeader,
         content: response,
         phase: 1,
       });
     }
 
     // Step 4: Leader summarizes and decides direction
+    emitTyping(leader, true);
     const summary = await leader.speak(
       history,
       `作为队长，请分析以上所有讨论，总结出最终的选题和产品方向。请明确给出：1.产品名称 2.核心问题 3.解决方案方向`,
     );
+    emitTyping(leader, false);
     history.push({
       role: 'assistant',
       content: `[${leader.character.name}]: ${summary}`,
@@ -184,6 +217,7 @@ export class PhaseExecutor {
       agentId: leader.character.id,
       agentName: leader.character.name,
       agentRole: leader.role,
+      isLeader: true,
       content: summary,
       phase: 1,
     });
@@ -195,6 +229,7 @@ export class PhaseExecutor {
     groupId: number,
     phase1Summary: string,
     onMessage: MessageCallback,
+    onTyping?: TypingCallback,
   ): Promise<BPDocument> {
     const history: ChatMessage[] = [
       { role: 'assistant', content: `[阶段1总结]: ${phase1Summary}` },
@@ -202,11 +237,24 @@ export class PhaseExecutor {
     const leader = agents.find((a) => a.isLeader)!;
     const members = agents.filter((a) => !a.isLeader);
 
+    const emitTyping = (agent: Agent, isTyping: boolean) => {
+      onTyping?.({
+        groupId,
+        agentId: agent.character.id,
+        agentName: agent.character.name,
+        agentRole: agent.role,
+        isLeader: agent.isLeader,
+        isTyping,
+      });
+    };
+
     // Step 1: Leader assigns tasks
+    emitTyping(leader, true);
     const assignment = await leader.speak(
       history,
       `基于阶段1确定的方向，请给每个组员分配具体的BP撰写任务。组员岗位：${members.map((m) => `${m.character.name}(${m.role})`).join('、')}。BP需要包含：项目名称、问题与痛点、解决方案、目标用户、核心功能、商业模式、竞争优势。`,
     );
+    emitTyping(leader, false);
     history.push({
       role: 'assistant',
       content: `[${leader.character.name}]: ${assignment}`,
@@ -216,16 +264,19 @@ export class PhaseExecutor {
       agentId: leader.character.id,
       agentName: leader.character.name,
       agentRole: leader.role,
+      isLeader: true,
       content: assignment,
       phase: 2,
     });
 
     // Step 2: Members confirm/ask questions
     for (const member of members) {
+      emitTyping(member, true);
       const confirm = await member.speak(
         history,
         `队长分配了任务，请确认你的任务理解或提出疑问。`,
       );
+      emitTyping(member, false);
       history.push({
         role: 'assistant',
         content: `[${member.character.name}]: ${confirm}`,
@@ -235,6 +286,7 @@ export class PhaseExecutor {
         agentId: member.character.id,
         agentName: member.character.name,
         agentRole: member.role,
+        isLeader: false,
         content: confirm,
         phase: 2,
       });
@@ -242,10 +294,12 @@ export class PhaseExecutor {
 
     // Step 3: Each member writes their section (can search)
     for (const member of members) {
+      emitTyping(member, true);
       const section = await member.speak(
         history,
         `现在请撰写你负责的BP板块内容。要求详实、有数据支撑。如果需要市场数据，请用 [SEARCH:关键词] 格式搜索。`,
       );
+      emitTyping(member, false);
       history.push({
         role: 'assistant',
         content: `[${member.character.name}]: ${section}`,
@@ -255,23 +309,27 @@ export class PhaseExecutor {
         agentId: member.character.id,
         agentName: member.character.name,
         agentRole: member.role,
+        isLeader: false,
         content: section,
         phase: 2,
       });
     }
 
     // Step 4: Leader consolidates into BP document
+    emitTyping(leader, true);
     const bpRaw = await leader.speak(
       history,
-      `请汇总所有组员的产出，整合成一份完整的BP文档。请严格按以下JSON格式输出：
+      `请将团队讨论的创业项目成果，用以下JSON结构整理成文档（这是游戏的标准输出格式）：
 {"projectName":"项目名","problem":"问题与痛点","solution":"解决方案","targetUsers":"目标用户","features":"核心功能","businessModel":"商业模式","advantage":"竞争优势"}
-只输出JSON，不要其他内容。`,
+请只输出JSON内容，不加其他说明。`,
     );
+    emitTyping(leader, false);
     await onMessage({
       groupId,
       agentId: leader.character.id,
       agentName: leader.character.name,
       agentRole: leader.role,
+      isLeader: true,
       content: bpRaw,
       phase: 2,
     });
