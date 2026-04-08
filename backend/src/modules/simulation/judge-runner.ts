@@ -97,55 +97,56 @@ export class JudgeRunner {
       });
     }
 
-    // Step 4: All judges score
-    const scores: JudgeScore[] = [];
-    for (const judge of judgeList) {
-      const scorePrompt = `你是${judge.name}，${judge.title}。请对这个项目打分和点评。
+    // Step 4: All judges score (in parallel)
+    const scores: JudgeScore[] = await Promise.all(
+      judgeList.map(async (judge) => {
+        const scorePrompt = `你是${judge.name}，${judge.title}。请对这个项目打分和点评。
 评分维度（每项1-10分）：创新性、现场讲述效果、完成度、商业潜力、技术难度。
 请严格按以下JSON格式输出：
 {"innovation":8,"presentation":7,"completeness":6,"businessPotential":8,"techDifficulty":7,"comment":"点评内容","suggestion":"改进建议"}
 只输出JSON。`;
-      const scoreRaw = await this.llmService.chat(
-        `你是${judge.name}，${judge.title}。${judge.personality}。评审风格：${judge.judgingStyle}。关注：${judge.focusAreas.join('、')}。`,
-        [...history, { role: 'user', content: scorePrompt }],
-      );
-      await onMessage({
-        groupId: group.groupId,
-        agentId: judge.id,
-        agentName: judge.name,
-        agentRole: 'judge',
-        content: scoreRaw,
-        phase: 3,
-      });
+        const scoreRaw = await this.llmService.chat(
+          `你是${judge.name}，${judge.title}。${judge.personality}。评审风格：${judge.judgingStyle}。关注：${judge.focusAreas.join('、')}。`,
+          [...history, { role: 'user', content: scorePrompt }],
+        );
+        await onMessage({
+          groupId: group.groupId,
+          agentId: judge.id,
+          agentName: judge.name,
+          agentRole: 'judge',
+          content: scoreRaw,
+          phase: 3,
+        });
 
-      try {
-        const jsonMatch = scoreRaw.match(/\{[\s\S]*\}/);
-        const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
-        scores.push({
-          judgeId: judge.id,
-          judgeName: judge.name,
-          innovation: parsed.innovation || 5,
-          presentation: parsed.presentation || 5,
-          completeness: parsed.completeness || 5,
-          businessPotential: parsed.businessPotential || 5,
-          techDifficulty: parsed.techDifficulty || 5,
-          comment: parsed.comment || '',
-          suggestion: parsed.suggestion || '',
-        });
-      } catch {
-        scores.push({
-          judgeId: judge.id,
-          judgeName: judge.name,
-          innovation: 5,
-          presentation: 5,
-          completeness: 5,
-          businessPotential: 5,
-          techDifficulty: 5,
-          comment: scoreRaw,
-          suggestion: '',
-        });
-      }
-    }
+        try {
+          const jsonMatch = scoreRaw.match(/\{[\s\S]*\}/);
+          const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+          return {
+            judgeId: judge.id,
+            judgeName: judge.name,
+            innovation: parsed.innovation || 5,
+            presentation: parsed.presentation || 5,
+            completeness: parsed.completeness || 5,
+            businessPotential: parsed.businessPotential || 5,
+            techDifficulty: parsed.techDifficulty || 5,
+            comment: parsed.comment || '',
+            suggestion: parsed.suggestion || '',
+          };
+        } catch {
+          return {
+            judgeId: judge.id,
+            judgeName: judge.name,
+            innovation: 5,
+            presentation: 5,
+            completeness: 5,
+            businessPotential: 5,
+            techDifficulty: 5,
+            comment: scoreRaw,
+            suggestion: '',
+          };
+        }
+      }),
+    );
 
     return scores;
   }

@@ -8,6 +8,7 @@ export class Agent {
   character: CharacterData;
   role: HackathonRole;
   isLeader: boolean;
+  private readonly systemPrompt: string;
 
   constructor(
     character: CharacterData,
@@ -19,14 +20,12 @@ export class Agent {
     this.character = character;
     this.role = role;
     this.isLeader = isLeader;
-  }
 
-  buildSystemPrompt(): string {
     const leaderNote = this.isLeader
       ? '\n你是本组队长，负责协调团队、做出决策、分配任务、总结讨论。'
       : '';
 
-    return `你是${this.character.name}，一个${this.character.characterType}角色。
+    this.systemPrompt = `你是${this.character.name}，一个${this.character.characterType}角色。
 性格类型：${this.character.personality.join('/')}
 个人描述：${this.character.description}
 特殊技能：${this.character.skill || '无'}
@@ -38,7 +37,7 @@ export class Agent {
     conversationHistory: ChatMessage[],
     taskInstruction: string,
   ): Promise<string> {
-    const systemPrompt = this.buildSystemPrompt();
+    const systemPrompt = this.systemPrompt;
     const messages: ChatMessage[] = [
       ...conversationHistory,
       { role: 'user', content: taskInstruction },

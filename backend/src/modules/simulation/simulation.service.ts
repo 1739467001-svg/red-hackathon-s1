@@ -10,6 +10,7 @@ import { Result } from './entities/result.entity';
 import { characters } from '../../data/characters';
 import { judges } from '../../data/judges';
 import { PhaseExecutor } from './phase-executor';
+import type { MessageCallback } from './phase-executor';
 import { GroupRunner } from './group-runner';
 import { JudgeRunner } from './judge-runner';
 import type { GroupAssignment } from './interfaces/simulation.interfaces';
@@ -65,14 +66,7 @@ export class SimulationService {
     groups: GroupAssignment[],
   ): Promise<void> {
     const subject = this.eventStreams.get(simulationId);
-    const onMessage = async (msg: {
-      groupId: number;
-      agentId: string;
-      agentName: string;
-      agentRole: string;
-      content: string;
-      phase: number;
-    }) => {
+    const onMessage: MessageCallback = async (msg) => {
       // Save to DB
       await this.messageRepo.save({ simulationId, ...msg });
       // Push to SSE
@@ -163,6 +157,7 @@ export class SimulationService {
       data: JSON.stringify({ type: 'complete', simulationId }),
     });
     subject?.complete();
+    this.eventStreams.delete(simulationId);
   }
 
   getStream(simulationId: string): Observable<MessageEvent> {

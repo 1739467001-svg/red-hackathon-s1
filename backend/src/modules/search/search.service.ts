@@ -1,28 +1,31 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { Semaphore } from '../../common/semaphore';
 
 @Injectable()
 export class SearchService {
   private readonly logger = new Logger(SearchService.name);
   private cache = new Map<string, string>();
-  private activeCalls = 0;
-  private readonly maxConcurrent = 3;
-  private waitQueue: Array<() => void> = [];
+  private readonly semaphore = new Semaphore(3);
 
   async search(query: string): Promise<string> {
     const cached = this.cache.get(query);
     if (cached) return cached;
 
-    await this.acquire();
+    await this.semaphore.acquire();
     try {
       const result = await this.fetchResults(query);
       this.cache.set(query, result);
+      if (this.cache.size > 100) {
+        const firstKey = this.cache.keys().next().value;
+        if (firstKey) this.cache.delete(firstKey);
+      }
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`Search failed for "${query}": ${message}`);
       return `搜索"${query}"失败，请基于已有知识继续。`;
     } finally {
-      this.release();
+      this.semaphore.release();
     }
   }
 
@@ -92,24 +95,4 @@ export class SearchService {
       .replace(/\s+/g, ' ');
   }
 
-  private acquire(): Promise<void> {
-    if (this.activeCalls < this.maxConcurrent) {
-      this.activeCalls++;
-      return Promise.resolve();
-    }
-    return new Promise<void>((resolve) => {
-      this.waitQueue.push(() => {
-        this.activeCalls++;
-        resolve();
-      });
-    });
-  }
-
-  private release(): void {
-    this.activeCalls--;
-    const next = this.waitQueue.shift();
-    if (next) {
-      next();
-    }
-  }
 }

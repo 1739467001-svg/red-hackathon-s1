@@ -1,6 +1,6 @@
 import type { SimulationResult, GroupInfo } from '@/types/simulation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export async function startSimulation(ideas: string[]): Promise<{ simulationId: string }> {
   const res = await fetch(`${API_URL}/api/simulation/start`, {

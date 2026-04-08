@@ -183,9 +183,10 @@ export class TavernScene extends Phaser.Scene {
 
     this.activeGroupId = groupId;
 
-    if (groupId < 0 || groupId >= 4) return;
+    const tableIndex = groupId - 1;
+    if (tableIndex < 0 || tableIndex >= 4) return;
 
-    const pos = TABLE_POSITIONS[groupId];
+    const pos = TABLE_POSITIONS[tableIndex];
     const glow = this.add.graphics();
 
     // Purple glow around table
@@ -227,7 +228,7 @@ export class TavernScene extends Phaser.Scene {
   /** Get characters belonging to a group (table) */
   private getGroupCharacters(groupId: number): CharacterSprite[] {
     const chars: CharacterSprite[] = [];
-    const startIdx = groupId * 5 + 1;
+    const startIdx = (groupId - 1) * 5 + 1;
     for (let i = startIdx; i < startIdx + 5 && i <= 20; i++) {
       const c = this.characters.get(`oc-${i}`);
       if (c) chars.push(c);
