@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Plus, X, Swords, Loader2 } from 'lucide-react';
 import { useSimulationStore } from '@/stores/simulation-store';
@@ -18,7 +18,8 @@ export default function Home() {
   const router = useRouter();
   const startSimulation = useSimulationStore((s) => s.startSimulation);
 
-  const [ideas, setIdeas] = useState<string[]>(['']);
+  const nextId = useRef(1);
+  const [ideas, setIdeas] = useState<{ id: number; text: string }[]>([{ id: 0, text: '' }]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,22 +28,22 @@ export default function Home() {
 
   function addIdea() {
     if (canAddMore) {
-      setIdeas((prev) => [...prev, '']);
+      setIdeas((prev) => [...prev, { id: nextId.current++, text: '' }]);
     }
   }
 
-  function removeIdea(index: number) {
+  function removeIdea(id: number) {
     if (canRemove) {
-      setIdeas((prev) => prev.filter((_, i) => i !== index));
+      setIdeas((prev) => prev.filter((idea) => idea.id !== id));
     }
   }
 
-  function updateIdea(index: number, value: string) {
-    setIdeas((prev) => prev.map((idea, i) => (i === index ? value : idea)));
+  function updateIdea(id: number, value: string) {
+    setIdeas((prev) => prev.map((idea) => (idea.id === id ? { ...idea, text: value } : idea)));
   }
 
   async function handleSubmit() {
-    const nonEmpty = ideas.map((i) => i.trim()).filter(Boolean);
+    const nonEmpty = ideas.map((i) => i.text.trim()).filter(Boolean);
     if (nonEmpty.length === 0) {
       setError('请至少输入一个想法');
       return;
@@ -99,10 +100,10 @@ export default function Home() {
       {/* Idea input section */}
       <div className="w-full max-w-xl space-y-4">
         {ideas.map((idea, index) => (
-          <div key={index} className="relative">
+          <div key={idea.id} className="relative">
             <textarea
-              value={idea}
-              onChange={(e) => updateIdea(index, e.target.value)}
+              value={idea.text}
+              onChange={(e) => updateIdea(idea.id, e.target.value)}
               placeholder={PLACEHOLDERS[index]}
               rows={2}
               className="pixel-border pixel-input neon-box-glow w-full resize-none px-4 py-3 text-lg transition-all duration-200"
@@ -116,7 +117,7 @@ export default function Home() {
             {canRemove && (
               <button
                 type="button"
-                onClick={() => removeIdea(index)}
+                onClick={() => removeIdea(idea.id)}
                 className="absolute right-2 top-2 cursor-pointer p-1 transition-colors duration-200"
                 style={{ color: '#64748b' }}
                 onMouseEnter={(e) =>
