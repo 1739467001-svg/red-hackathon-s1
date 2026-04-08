@@ -42,14 +42,16 @@ export class JudgeRunner {
     // Step 2: Select 2-3 judges to ask questions
     const selectionPrompt = `以下是6位评委：${judgeList.map((j) => `${j.name}(${j.title}，关注${j.focusAreas.join('、')})`).join('；')}。
 基于刚才的项目陈述，请选出2-3位最可能对该项目感兴趣并提问的评委。只输出评委名字，用逗号分隔。`;
-    const selectedNames = await this.llmService.chat(
-      '你是一个黑客松主持人。',
-      [...history, { role: 'user', content: selectionPrompt }],
-    );
+    const selectedNames = await this.llmService.chat('你是一个黑客松主持人。', [
+      ...history,
+      { role: 'user', content: selectionPrompt },
+    ]);
 
     let activeJudges = judgeList.filter((j) => {
-      const nameVariants = [j.name, ...j.name.split(/[（()]/)]
-      return nameVariants.some(n => n.length > 0 && selectedNames.includes(n.trim()));
+      const nameVariants = [j.name, ...j.name.split(/[（()]/)];
+      return nameVariants.some(
+        (n) => n.length > 0 && selectedNames.includes(n.trim()),
+      );
     });
     if (activeJudges.length === 0) {
       activeJudges = [judgeList[0], judgeList[1]]; // fallback
@@ -78,7 +80,7 @@ export class JudgeRunner {
       });
 
       // Decide who answers (leader or relevant member)
-      const answerer = await this.selectAnswerer(agents, question, history);
+      const answerer = await this.selectAnswerer(agents, question);
       const answer = await answerer.speak(
         history,
         `评委${judge.name}问了这个问题：${question}\n请回答。`,
@@ -120,7 +122,18 @@ export class JudgeRunner {
 
         try {
           const jsonMatch = scoreRaw.match(/\{[\s\S]*\}/);
-          const parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+          interface LlmScoreResponse {
+            innovation?: number;
+            presentation?: number;
+            completeness?: number;
+            businessPotential?: number;
+            techDifficulty?: number;
+            comment?: string;
+            suggestion?: string;
+          }
+          const parsed = (
+            jsonMatch ? JSON.parse(jsonMatch[0]) : {}
+          ) as LlmScoreResponse;
           return {
             judgeId: judge.id,
             judgeName: judge.name,
@@ -154,7 +167,6 @@ export class JudgeRunner {
   private async selectAnswerer(
     agents: Agent[],
     question: string,
-    history: ChatMessage[],
   ): Promise<Agent> {
     const leader = agents.find((a) => a.isLeader)!;
     const prompt = `问题是："${question}"。团队成员：${agents.map((a) => `${a.character.name}(${a.role})`).join('、')}。谁最适合回答？只输出名字。`;

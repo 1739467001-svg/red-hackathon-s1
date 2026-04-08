@@ -16,11 +16,11 @@ export class SearchService {
       const result = await this.fetchResults(query);
       this.cache.set(query, result);
       if (this.cache.size > 100) {
-        const firstKey = this.cache.keys().next().value;
+        const firstKey = this.cache.keys().next().value as string | undefined;
         if (firstKey) this.cache.delete(firstKey);
       }
       return result;
-    } catch (error) {
+    } catch (error: unknown) {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(`Search failed for "${query}": ${message}`);
       return `搜索"${query}"失败，请基于已有知识继续。`;
@@ -51,8 +51,7 @@ export class SearchService {
 
     // Extract result blocks using regex on DuckDuckGo HTML structure
     // Each result has a title in <a class="result__a"> and snippet in <a class="result__snippet">
-    const titleRegex =
-      /<a[^>]*class="result__a"[^>]*>([\s\S]*?)<\/a>/gi;
+    const titleRegex = /<a[^>]*class="result__a"[^>]*>([\s\S]*?)<\/a>/gi;
     const snippetRegex =
       /<a[^>]*class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
 
@@ -94,5 +93,4 @@ export class SearchService {
       .replace(/&nbsp;/g, ' ')
       .replace(/\s+/g, ' ');
   }
-
 }
