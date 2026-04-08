@@ -175,7 +175,7 @@ export function ChatSidebar() {
         className="flex shrink-0 border-b"
         style={{ borderColor: 'rgba(124, 58, 237, 0.3)' }}
       >
-        {[0, 1, 2, 3].map((groupId) => {
+        {[1, 2, 3, 4].map((groupId) => {
           const isActive = groupId === activeGroupTab;
           const unread = getUnreadCount(groupId);
 
@@ -205,7 +205,7 @@ export function ChatSidebar() {
                 }
               }}
             >
-              组 {groupId + 1}
+              组 {groupId}
               {/* Unread badge */}
               {unread > 0 && (
                 <span
