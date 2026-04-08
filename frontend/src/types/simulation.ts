@@ -6,10 +6,20 @@ export interface SimulationMessage {
     name: string;
     avatar: string;
     role: string;
+    isLeader: boolean;
   };
   content?: string;
   phase?: number;
   simulationId?: string;
+}
+
+export interface TypingAgent {
+  groupId: number;
+  agentId: string;
+  agentName: string;
+  agentRole: string;
+  isLeader: boolean;
+  startedAt: number; // Date.now()
 }
 
 export interface GroupInfo {

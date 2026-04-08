@@ -3,22 +3,22 @@ import { CharacterSprite } from './CharacterSprite';
 
 /** Table positions (center x,y) for 4 groups */
 const TABLE_POSITIONS = [
-  { x: 220, y: 220 }, // Table 1 — top-left
-  { x: 580, y: 220 }, // Table 2 — top-right
-  { x: 220, y: 420 }, // Table 3 — bottom-left
-  { x: 580, y: 420 }, // Table 4 — bottom-right
+  { x: 220, y: 260 },
+  { x: 580, y: 260 },
+  { x: 220, y: 440 },
+  { x: 580, y: 440 },
 ];
 
-const TABLE_WIDTH = 120;
-const TABLE_HEIGHT = 60;
+const TABLE_WIDTH = 130;
+const TABLE_HEIGHT = 70;
 
-/** Seat offsets (relative to table center) for 5 characters */
+/** Seat offsets (relative to table center) for up to 5 characters */
 const SEAT_OFFSETS = [
-  { x: -40, y: -50 },  // top-left
-  { x: 0, y: -50 },    // top-center
-  { x: 40, y: -50 },   // top-right
-  { x: -25, y: 50 },   // bottom-left
-  { x: 25, y: 50 },    // bottom-right
+  { x: -50, y: -60 },
+  { x: 0, y: -65 },
+  { x: 50, y: -60 },
+  { x: -30, y: 55 },
+  { x: 30, y: 55 },
 ];
 
 export class TavernScene extends Phaser.Scene {
@@ -33,90 +33,95 @@ export class TavernScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Load all 20 character avatars
+    // Load character avatars
     for (let i = 1; i <= 20; i++) {
       this.load.image(`oc-${i}`, `/avatars/oc-${i}.jpeg`);
     }
+    // Load tavern background
+    this.load.image('tavern-bg', '/game/tavern-bg.png');
   }
 
   create(): void {
-    this.drawBackground();
+    // Background image (replaces programmatic drawing)
+    this.add.image(400, 300, 'tavern-bg');
+
+    // Draw group banners on the wall
+    this.drawBanner(140, 0, 0x7c3aed, 'G1');
+    this.drawBanner(330, 0, 0x3b82f6, 'G2');
+    this.drawBanner(470, 0, 0x10b981, 'G3');
+    this.drawBanner(660, 0, 0xf43f5e, 'G4');
+
     this.drawTables();
     this.placeCharacters();
     this.createPhaseIndicator();
   }
 
-  /** Draw the dark tavern background */
-  private drawBackground(): void {
-    const bg = this.add.graphics();
-
-    // Dark floor
-    bg.fillStyle(0x0f0f23, 1);
-    bg.fillRect(0, 0, 800, 600);
-
-    // Wooden floor planks
-    bg.fillStyle(0x4a3728, 0.3);
-    for (let y = 0; y < 600; y += 40) {
-      bg.fillRect(0, y, 800, 2);
-    }
-
-    // Wall at top
-    bg.fillStyle(0x6b4e37, 0.6);
-    bg.fillRect(0, 0, 800, 60);
-    bg.fillStyle(0x4a3728, 0.8);
-    bg.fillRect(0, 58, 800, 4);
-
-    // Title text
-    this.add.text(400, 30, 'TAVERN', {
-      fontSize: '20px',
-      fontFamily: '"VT323", monospace',
-      color: '#7C3AED',
-      align: 'center',
-    }).setOrigin(0.5, 0.5);
-
-    // Ambient corner shadows
-    bg.fillStyle(0x000000, 0.2);
-    bg.fillRect(0, 0, 40, 600);
-    bg.fillRect(760, 0, 40, 600);
+  private drawBanner(x: number, y: number, color: number, label: string): void {
+    const g = this.add.graphics();
+    // Banner ribbon
+    g.fillStyle(color, 0.85);
+    g.fillRect(x - 14, y + 8, 28, 38);
+    g.fillTriangle(x - 14, y + 46, x + 14, y + 46, x, y + 56);
+    // Border
+    g.lineStyle(1, 0xffffff, 0.2);
+    g.strokeRect(x - 14, y + 8, 28, 38);
+    // Label
+    this.add
+      .text(x, y + 25, label, {
+        fontSize: '10px',
+        fontFamily: '"VT323", monospace',
+        color: '#FFFFFF',
+      })
+      .setOrigin(0.5, 0.5)
+      .setAlpha(0.9);
+    // Pin
+    g.fillStyle(0x8b6914, 1);
+    g.fillCircle(x, y + 10, 3);
   }
 
-  /** Draw 4 tables */
   private drawTables(): void {
     for (let i = 0; i < 4; i++) {
       const pos = TABLE_POSITIONS[i];
       const tableGfx = this.add.graphics();
 
-      // Table surface
-      tableGfx.fillStyle(0x6b4e37, 1);
-      tableGfx.fillRect(
-        pos.x - TABLE_WIDTH / 2,
-        pos.y - TABLE_HEIGHT / 2,
-        TABLE_WIDTH,
-        TABLE_HEIGHT,
-      );
+      // Shadow
+      tableGfx.fillStyle(0x000000, 0.35);
+      tableGfx.fillEllipse(pos.x, pos.y + TABLE_HEIGHT / 2 + 10, TABLE_WIDTH + 24, 18);
 
-      // Table border (pixel style)
-      tableGfx.lineStyle(2, 0x4a3728, 1);
-      tableGfx.strokeRect(
-        pos.x - TABLE_WIDTH / 2,
-        pos.y - TABLE_HEIGHT / 2,
-        TABLE_WIDTH,
-        TABLE_HEIGHT,
-      );
+      // Table surface — dark rich wood
+      tableGfx.fillStyle(0x5c3d1e, 1);
+      tableGfx.fillRect(pos.x - TABLE_WIDTH / 2, pos.y - TABLE_HEIGHT / 2, TABLE_WIDTH, TABLE_HEIGHT);
 
-      // Table number
-      this.add.text(pos.x, pos.y, `G${i + 1}`, {
-        fontSize: '12px',
-        fontFamily: '"VT323", monospace',
-        color: '#E2E8F0',
-        align: 'center',
-      }).setOrigin(0.5, 0.5).setAlpha(0.5);
+      // Wood grain lines
+      tableGfx.fillStyle(0x4a3015, 0.5);
+      for (let g = 0; g < 4; g++) {
+        tableGfx.fillRect(pos.x - TABLE_WIDTH / 2 + 8 + g * 30, pos.y - TABLE_HEIGHT / 2 + 4, 2, TABLE_HEIGHT - 8);
+      }
+
+      // Top highlight
+      tableGfx.fillStyle(0x7a5a30, 0.4);
+      tableGfx.fillRect(pos.x - TABLE_WIDTH / 2 + 2, pos.y - TABLE_HEIGHT / 2 + 2, TABLE_WIDTH - 4, 5);
+
+      // Border
+      tableGfx.lineStyle(2, 0x3a2810, 1);
+      tableGfx.strokeRect(pos.x - TABLE_WIDTH / 2, pos.y - TABLE_HEIGHT / 2, TABLE_WIDTH, TABLE_HEIGHT);
+
+      // Group label
+      this.add
+        .text(pos.x, pos.y, `G${i + 1}`, {
+          fontSize: '14px',
+          fontFamily: '"VT323", monospace',
+          color: '#D4A017',
+          stroke: '#0d0a18',
+          strokeThickness: 2,
+        })
+        .setOrigin(0.5, 0.5)
+        .setAlpha(0.7);
 
       this.tableGraphics.push(tableGfx);
     }
   }
 
-  /** Place 5 characters around each table (20 total) */
   private placeCharacters(): void {
     for (let tableIdx = 0; tableIdx < 4; tableIdx++) {
       const tablePos = TABLE_POSITIONS[tableIdx];
@@ -130,30 +135,26 @@ export class TavernScene extends Phaser.Scene {
         const textureKey = `oc-${charIndex}`;
         const agentId = `oc-${charIndex}`;
 
-        const character = new CharacterSprite(
-          this,
-          x,
-          y,
-          textureKey,
-          `OC-${charIndex}`,
-          agentId,
-        );
-        character.startIdle();
+        const character = new CharacterSprite(this, x, y, textureKey, `OC-${charIndex}`, agentId);
+        // Stagger idle animation
+        this.time.delayedCall(seatIdx * 350 + tableIdx * 200, () => {
+          character.startIdle();
+        });
         this.characters.set(agentId, character);
       }
     }
   }
 
-  /** Create phase indicator in top-left */
   private createPhaseIndicator(): void {
-    this.phaseText = this.add.text(16, 12, 'Phase 0: 准备', {
+    this.phaseText = this.add.text(16, 14, 'Phase 0: 准备', {
       fontSize: '14px',
       fontFamily: '"VT323", monospace',
-      color: '#7C3AED',
+      color: '#A78BFA',
+      stroke: '#0d0a18',
+      strokeThickness: 2,
     });
   }
 
-  /** Update phase indicator text */
   setPhaseIndicator(phase: number): void {
     const labels: Record<number, string> = {
       0: 'Phase 0: 准备',
@@ -166,19 +167,14 @@ export class TavernScene extends Phaser.Scene {
     }
   }
 
-  /** Highlight the active table with a glow */
   highlightTable(groupId: number): void {
-    // Remove old glow
     if (this.activeGroupId >= 0) {
       const oldGlow = this.tableGlowGraphics.get(this.activeGroupId);
       if (oldGlow) {
         oldGlow.destroy();
         this.tableGlowGraphics.delete(this.activeGroupId);
       }
-      // Un-highlight old group characters
-      this.getGroupCharacters(this.activeGroupId).forEach((c) =>
-        c.highlight(false),
-      );
+      this.getGroupCharacters(this.activeGroupId).forEach((c) => c.highlight(false));
     }
 
     this.activeGroupId = groupId;
@@ -189,18 +185,17 @@ export class TavernScene extends Phaser.Scene {
     const pos = TABLE_POSITIONS[tableIndex];
     const glow = this.add.graphics();
 
-    // Purple glow around table
-    glow.fillStyle(0x7c3aed, 0.15);
+    // Soft outer glow
+    glow.fillStyle(0x7c3aed, 0.1);
     glow.fillRoundedRect(
-      pos.x - TABLE_WIDTH / 2 - 10,
-      pos.y - TABLE_HEIGHT / 2 - 10,
-      TABLE_WIDTH + 20,
-      TABLE_HEIGHT + 20,
-      6,
+      pos.x - TABLE_WIDTH / 2 - 24,
+      pos.y - TABLE_HEIGHT / 2 - 24,
+      TABLE_WIDTH + 48,
+      TABLE_HEIGHT + 48,
+      10,
     );
-
-    // Glow border
-    glow.lineStyle(2, 0x7c3aed, 0.6);
+    // Sharp inner border
+    glow.lineStyle(2, 0xa78bfa, 0.9);
     glow.strokeRoundedRect(
       pos.x - TABLE_WIDTH / 2 - 10,
       pos.y - TABLE_HEIGHT / 2 - 10,
@@ -210,22 +205,18 @@ export class TavernScene extends Phaser.Scene {
     );
 
     this.tableGlowGraphics.set(groupId, glow);
-
-    // Pulse animation
     this.tweens.add({
       targets: glow,
-      alpha: { from: 0.6, to: 1 },
-      duration: 1200,
+      alpha: { from: 0.5, to: 1 },
+      duration: 1000,
       yoyo: true,
       repeat: -1,
       ease: 'Sine.easeInOut',
     });
 
-    // Highlight group characters
     this.getGroupCharacters(groupId).forEach((c) => c.highlight(true));
   }
 
-  /** Get characters belonging to a group (table) */
   private getGroupCharacters(groupId: number): CharacterSprite[] {
     const chars: CharacterSprite[] = [];
     const startIdx = (groupId - 1) * 5 + 1;
@@ -236,7 +227,6 @@ export class TavernScene extends Phaser.Scene {
     return chars;
   }
 
-  /** Show speech bubble on a character */
   showSpeechBubble(agentId: string, text?: string): void {
     this.hideSpeechBubble();
     const character = this.characters.get(agentId);
@@ -245,12 +235,10 @@ export class TavernScene extends Phaser.Scene {
     }
   }
 
-  /** Hide all speech bubbles */
   hideSpeechBubble(): void {
     this.characters.forEach((c) => c.stopSpeaking());
   }
 
-  /** Clean up on scene shutdown */
   shutdown(): void {
     this.characters.forEach((c) => c.destroy());
     this.characters.clear();

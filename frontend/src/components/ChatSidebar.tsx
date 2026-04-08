@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useSimulationStore } from '@/stores/simulation-store';
-import type { SimulationMessage } from '@/types/simulation';
+import type { SimulationMessage, TypingAgent } from '@/types/simulation';
+import MarkdownContent from './MarkdownContent';
 
 const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
   产品经理: { bg: '#7C3AED', text: '#FFFFFF' },
@@ -18,7 +19,6 @@ function getRoleStyle(role: string) {
 }
 
 function getAvatarUrl(agentId: string): string {
-  // agentId format may contain a character number; extract digits
   const match = agentId.match(/(\d+)/);
   const num = match ? parseInt(match[1], 10) : 1;
   return `/avatars/oc-${num}.jpeg`;
@@ -26,10 +26,6 @@ function getAvatarUrl(agentId: string): string {
 
 function isJudgeMessage(msg: SimulationMessage): boolean {
   return msg.agent?.role === '评委';
-}
-
-function isLeaderMessage(msg: SimulationMessage): boolean {
-  return msg.agent?.role === '产品经理';
 }
 
 interface MessageItemProps {
@@ -42,7 +38,7 @@ function MessageItem({ msg }: MessageItemProps) {
 
   const roleStyle = getRoleStyle(agent.role);
   const isJudge = isJudgeMessage(msg);
-  const isLeader = isLeaderMessage(msg);
+  const isLeader = agent.isLeader;
 
   return (
     <div
@@ -51,6 +47,8 @@ function MessageItem({ msg }: MessageItemProps) {
         borderColor: 'rgba(124, 58, 237, 0.15)',
         backgroundColor: isJudge
           ? 'rgba(212, 160, 23, 0.08)'
+          : isLeader
+          ? 'rgba(124, 58, 237, 0.05)'
           : 'transparent',
       }}
     >
@@ -76,7 +74,7 @@ function MessageItem({ msg }: MessageItemProps) {
 
       {/* Content */}
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex flex-wrap items-center gap-1.5 mb-1">
           {/* Name */}
           <span
             className="text-base font-bold truncate"
@@ -87,6 +85,21 @@ function MessageItem({ msg }: MessageItemProps) {
           >
             {agent.name}
           </span>
+
+          {/* Leader badge */}
+          {isLeader && (
+            <span
+              className="shrink-0 px-1.5 py-0.5"
+              style={{
+                fontFamily: 'var(--font-pixel-body)',
+                backgroundColor: '#F59E0B',
+                color: '#1A1A2E',
+                fontSize: '0.6rem',
+              }}
+            >
+              队长
+            </span>
+          )}
 
           {/* Role badge */}
           <span
@@ -103,15 +116,128 @@ function MessageItem({ msg }: MessageItemProps) {
         </div>
 
         {/* Message text */}
-        <p
-          className="text-base leading-relaxed break-words"
-          style={{
-            fontFamily: 'var(--font-pixel-body)',
-            color: '#CBD5E1',
-          }}
-        >
-          {msg.content}
-        </p>
+        <MarkdownContent content={msg.content} />
+      </div>
+    </div>
+  );
+}
+
+/** Typing indicator shown while an AI agent is generating */
+function TypingIndicator({ agent }: { agent: TypingAgent }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsed(Math.floor((Date.now() - agent.startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [agent.startedAt]);
+
+  const roleStyle = getRoleStyle(agent.agentRole);
+  const avatarNum = agent.agentId.match(/\d+/)?.[0] ?? '1';
+
+  return (
+    <div
+      className="flex gap-3 px-3 py-3 border-b"
+      style={{
+        borderColor: 'rgba(124, 58, 237, 0.15)',
+        backgroundColor: agent.agentRole === '评委'
+          ? 'rgba(212, 160, 23, 0.06)'
+          : agent.isLeader
+          ? 'rgba(124, 58, 237, 0.08)'
+          : 'rgba(124, 58, 237, 0.04)',
+      }}
+    >
+      {/* Avatar with pulse */}
+      <div
+        className="h-8 w-8 shrink-0 overflow-hidden"
+        style={{
+          border: agent.isLeader
+            ? '2px solid #F59E0B'
+            : agent.agentRole === '评委'
+            ? '2px solid #D4A017'
+            : '2px solid #7C3AED',
+          imageRendering: 'pixelated',
+        }}
+      >
+        <img
+          src={`/avatars/oc-${avatarNum}.jpeg`}
+          alt={agent.agentName}
+          className="h-full w-full object-cover"
+          style={{ imageRendering: 'pixelated', opacity: 0.7 }}
+        />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5 mb-2">
+          <span
+            className="text-base font-bold"
+            style={{
+              fontFamily: 'var(--font-pixel-body)',
+              color: agent.isLeader ? '#F59E0B' : agent.agentRole === '评委' ? '#D4A017' : '#E2E8F0',
+              opacity: 0.8,
+            }}
+          >
+            {agent.agentName}
+          </span>
+          {agent.isLeader && (
+            <span
+              className="shrink-0 px-1.5 py-0.5"
+              style={{
+                fontFamily: 'var(--font-pixel-body)',
+                backgroundColor: '#F59E0B',
+                color: '#1A1A2E',
+                fontSize: '0.6rem',
+              }}
+            >
+              队长
+            </span>
+          )}
+          <span
+            className="shrink-0 px-1.5 py-0.5"
+            style={{
+              fontFamily: 'var(--font-pixel-body)',
+              backgroundColor: roleStyle.bg,
+              color: roleStyle.text,
+              fontSize: '0.65rem',
+            }}
+          >
+            {agent.agentRole}
+          </span>
+          <span
+            className="ml-auto text-xs tabular-nums"
+            style={{
+              fontFamily: 'var(--font-pixel-body)',
+              color: '#64748B',
+            }}
+          >
+            ({elapsed}s)
+          </span>
+        </div>
+
+        {/* Animated typing dots */}
+        <div className="flex items-center gap-1.5">
+          <span
+            style={{
+              fontFamily: 'var(--font-pixel-body)',
+              color: '#64748B',
+              fontSize: '0.75rem',
+            }}
+          >
+            思考中
+          </span>
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="h-1.5 w-1.5"
+              style={{
+                backgroundColor: '#7C3AED',
+                animation: `blink 1.2s step-end infinite`,
+                animationDelay: `${i * 0.4}s`,
+              }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -121,10 +247,10 @@ export function ChatSidebar() {
   const activeGroupTab = useSimulationStore((s) => s.activeGroupTab);
   const setActiveGroupTab = useSimulationStore((s) => s.setActiveGroupTab);
   const messages = useSimulationStore((s) => s.messages);
+  const typingAgents = useSimulationStore((s) => s.typingAgents);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Track last seen message count per tab for unread badges
   const [lastSeenCounts, setLastSeenCounts] = useState<Record<number, number>>(
     {}
   );
@@ -137,13 +263,11 @@ export function ChatSidebar() {
   );
 
   const currentMessages = getMessagesForGroup(activeGroupTab);
+  const currentTyping = typingAgents.get(activeGroupTab) ?? null;
 
-  // Last-seen count is updated in handleTabClick when switching tabs
-
-  // Auto-scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [currentMessages.length]);
+  }, [currentMessages.length, currentTyping]);
 
   function getUnreadCount(groupId: number): number {
     if (groupId === activeGroupTab) return 0;
@@ -152,8 +276,11 @@ export function ChatSidebar() {
     return Math.max(0, total - lastSeen);
   }
 
+  function hasGroupTyping(groupId: number): boolean {
+    return groupId !== activeGroupTab && (typingAgents.get(groupId) ?? null) !== null;
+  }
+
   function handleTabClick(groupId: number) {
-    // Save current tab's seen count before switching
     setLastSeenCounts((prev) => ({
       ...prev,
       [activeGroupTab]: currentMessages.length,
@@ -174,6 +301,7 @@ export function ChatSidebar() {
         {[1, 2, 3, 4].map((groupId) => {
           const isActive = groupId === activeGroupTab;
           const unread = getUnreadCount(groupId);
+          const isTypingInGroup = hasGroupTyping(groupId);
 
           return (
             <button
@@ -202,6 +330,16 @@ export function ChatSidebar() {
               }}
             >
               组 {groupId}
+              {/* Typing indicator dot on inactive tab */}
+              {isTypingInGroup && (
+                <span
+                  className="absolute top-0.5 right-0.5 h-2 w-2 rounded-full"
+                  style={{
+                    backgroundColor: '#A78BFA',
+                    animation: 'pulse 1.5s ease-in-out infinite',
+                  }}
+                />
+              )}
               {/* Unread badge */}
               {unread > 0 && (
                 <span
@@ -225,7 +363,7 @@ export function ChatSidebar() {
 
       {/* Messages list */}
       <div className="flex-1 overflow-y-auto">
-        {currentMessages.length === 0 ? (
+        {currentMessages.length === 0 && !currentTyping ? (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <p
@@ -260,6 +398,8 @@ export function ChatSidebar() {
               .map((msg, idx) => (
                 <MessageItem key={idx} msg={msg} />
               ))}
+            {/* Typing indicator at bottom */}
+            {currentTyping && <TypingIndicator agent={currentTyping} />}
             <div ref={messagesEndRef} />
           </>
         )}

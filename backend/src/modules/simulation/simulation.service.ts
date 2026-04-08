@@ -11,7 +11,7 @@ import { Result } from './entities/result.entity';
 import { characters } from '../../data/characters';
 import { judges } from '../../data/judges';
 import { PhaseExecutor } from './phase-executor';
-import type { MessageCallback } from './phase-executor';
+import type { MessageCallback, TypingCallback } from './phase-executor';
 import { GroupRunner } from './group-runner';
 import { JudgeRunner } from './judge-runner';
 import type { GroupAssignment } from './interfaces/simulation.interfaces';
@@ -81,6 +81,12 @@ export class SimulationService {
       });
     };
 
+    const onTyping: TypingCallback = (msg) => {
+      subject?.next({
+        data: JSON.stringify({ type: 'agent_typing', ...msg }),
+      });
+    };
+
     // Create group runners
     const runners = groups.map(
       (g) =>
@@ -92,7 +98,7 @@ export class SimulationService {
       data: JSON.stringify({ type: 'phase_change', phase: 1 }),
     });
     await this.simulationRepo.update(simulationId, { currentPhase: 1 });
-    await Promise.all(runners.map((r) => r.runPhase1(onMessage)));
+    await Promise.all(runners.map((r) => r.runPhase1(onMessage, onTyping)));
 
     // Phase 2: All groups in parallel
     subject?.next({
@@ -113,7 +119,7 @@ export class SimulationService {
           },
           order: { createdAt: 'DESC' },
         });
-        return r.runPhase2(lastMsg?.content || '', onMessage);
+        return r.runPhase2(lastMsg?.content || '', onMessage, onTyping);
       }),
     );
 
@@ -133,6 +139,7 @@ export class SimulationService {
         bp,
         judges,
         onMessage,
+        onTyping,
       );
       const totalScore =
         scores.reduce(

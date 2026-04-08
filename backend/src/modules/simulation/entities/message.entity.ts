@@ -28,6 +28,9 @@ export class Message {
   @Column()
   agentRole: string;
 
+  @Column({ default: false })
+  isLeader: boolean;
+
   @Column('text')
   content: string;
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useSimulationStore } from '@/stores/simulation-store';
@@ -74,6 +74,42 @@ export default function SimulationPage() {
   const speakingText =
     lastMessage?.type === 'message' ? lastMessage.content : undefined;
 
+  // Derive unique team members for the active group from Phase 1/2 messages
+  const teamMembers = useMemo(() => {
+    const seen = new Map<string, { id: string; name: string; textureKey: string; isLeader: boolean }>();
+    const groupMsgs = messages.get(activeGroupTab) ?? [];
+    for (const msg of groupMsgs) {
+      if (msg.agent && (msg.phase ?? 0) < 3 && !seen.has(msg.agent.id)) {
+        const numMatch = msg.agent.id.match(/\d+/);
+        const num = numMatch ? parseInt(numMatch[0], 10) : 1;
+        seen.set(msg.agent.id, {
+          id: msg.agent.id,
+          name: msg.agent.name,
+          textureKey: `oc-${num}`,
+          isLeader: msg.agent.isLeader,
+        });
+      }
+    }
+    return Array.from(seen.values());
+  }, [messages, activeGroupTab]);
+
+  // Derive judges from Phase 3 messages (role === '评委')
+  const judges = useMemo(() => {
+    const seen = new Map<string, { id: string; name: string; avatarUrl: string }>();
+    for (const [, groupMsgs] of messages) {
+      for (const msg of groupMsgs) {
+        if (msg.agent && msg.agent.role === '评委' && !seen.has(msg.agent.id)) {
+          seen.set(msg.agent.id, {
+            id: msg.agent.id,
+            name: msg.agent.name,
+            avatarUrl: msg.agent.avatar,
+          });
+        }
+      }
+    }
+    return Array.from(seen.values());
+  }, [messages]);
+
   if (!simulationId) {
     return null;
   }
@@ -98,6 +134,8 @@ export default function SimulationPage() {
             activeGroupId={activeGroupTab}
             speakingAgentId={speakingAgentId}
             speakingText={speakingText}
+            teamMembers={teamMembers}
+            judges={judges}
           />
         </div>
 
