@@ -216,6 +216,8 @@ export function ChatSidebar() {
   const setActiveGroupTab = useSimulationStore((s) => s.setActiveGroupTab);
   const messages = useSimulationStore((s) => s.messages);
   const typingAgents = useSimulationStore((s) => s.typingAgents);
+  const groups = useSimulationStore((s) => s.groups);
+  const groupIds = groups.length > 0 ? groups.map(g => g.groupId) : [];
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -263,13 +265,26 @@ export function ChatSidebar() {
     >
       {/* Group Tabs */}
       <div
-        className="flex shrink-0"
+        className="flex shrink-0 overflow-x-auto"
         style={{ borderBottom: '1px solid var(--rs-gray-dark)' }}
       >
-        {[1, 2, 3, 4].map((groupId) => {
+        {groupIds.length === 0 ? (
+          <div
+            className="flex-1 px-2 py-2.5 text-center"
+            style={{
+              fontFamily: 'var(--rs-font-mono)',
+              fontSize: '0.75rem',
+              letterSpacing: '2px',
+              color: 'var(--rs-gray)',
+            }}
+          >
+            LOADING GROUPS...
+          </div>
+        ) : groupIds.map((groupId) => {
           const isActive = groupId === activeGroupTab;
           const unread = getUnreadCount(groupId);
           const isTypingInGroup = hasGroupTyping(groupId);
+          const manyGroups = groupIds.length > 6;
 
           return (
             <button
@@ -279,8 +294,9 @@ export function ChatSidebar() {
               className="relative flex-1 cursor-pointer px-2 py-2.5 text-center transition-all duration-200"
               style={{
                 fontFamily: 'var(--rs-font-display)',
-                fontSize: '1rem',
-                letterSpacing: '2px',
+                fontSize: manyGroups ? '0.75rem' : '1rem',
+                letterSpacing: manyGroups ? '1px' : '2px',
+                minWidth: manyGroups ? undefined : undefined,
                 backgroundColor: 'var(--rs-black)',
                 color: isActive ? 'var(--rs-white)' : 'var(--rs-gray)',
                 border: '1px solid var(--rs-gray-dark)',
