@@ -209,6 +209,33 @@
     opacity: 0;
   }
 
+  /* Hover info overlay — dark bg with text inside the card */
+  .hover-info-overlay {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    background: rgba(2, 1, 8, 0.85);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  .grid-cell.hovered .hover-info-overlay,
+  .marquee-card.hovered .hover-info-overlay {
+    opacity: 1;
+  }
+
+  .grid-cell.hovered::before,
+  .marquee-card.hovered::before {
+    opacity: 0 !important;
+  }
+
   .grid-cell img {
     display: block;
     width: 200%;
