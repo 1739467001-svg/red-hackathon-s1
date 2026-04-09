@@ -7,7 +7,6 @@ import {
   useCallback,
   useMemo,
 } from 'react';
-import { createPortal } from 'react-dom';
 import type { GroupInfo, Track } from '@/types/simulation';
 import { getAvatarUrl } from '@/lib/avatar';
 
@@ -34,19 +33,26 @@ interface CellData {
   avatarUrl: string;
 }
 
-interface DetailPopup {
-  cell: CellData;
-  x: number;
-  y: number;
-}
+/*
+ * Visual display stage — decoupled from backend currentPhase.
+ * The backend Phase 0→1 transition is near-instant, so we run our own
+ * staged animation sequence on the frontend regardless of how fast the
+ * backend moves.
+ *
+ *   revealing  → flat grid with staggered card entrance
+ *   revealed   → all cards visible, brief pause
+ *   grouping   → FLIP animation moves cards to group slots
+ *   marquee    → final: horizontal scrolling per group
+ */
+type DisplayStage = 'revealing' | 'revealed' | 'grouping' | 'marquee';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
 const ACTIVATION_DELAY_MS = 80;
-const HOVER_DELAY_MS = 200;
 const FLIP_DURATION_MS = 1200;
+const PAUSE_AFTER_REVEAL_MS = 1000;
 
 const TRACK_LABELS: Record<Track, string> = {
   software: '软件赛道',
@@ -68,6 +74,40 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
   return result;
 }
 
+/* ------------------------------------------------------------------ */
+/*  Hover overlay content (rendered inside card)                       */
+/* ------------------------------------------------------------------ */
+
+function HoverOverlay({ cell, speakingAgentId }: { cell: CellData; speakingAgentId: string | null }) {
+  const isSpeaking = speakingAgentId === cell.characterId;
+  return (
+    <div className="hover-info-overlay">
+      <div style={{ transform: 'skewX(28deg)' }}>
+        <p
+          className="font-display font-bold"
+          style={{ fontSize: 13, color: '#fff', marginBottom: 4, lineHeight: 1.2 }}
+        >
+          {cell.name}
+        </p>
+        <p style={{ fontSize: 10, color: 'var(--tk-cyan)', marginBottom: 2 }}>
+          {cell.role}
+          {cell.isLeader ? ' · 队长' : ''}
+        </p>
+        <p style={{ fontSize: 9, color: 'var(--rs-gray-light)' }}>
+          {cell.groupName} · {TRACK_LABELS[cell.track]}
+        </p>
+        {isSpeaking && (
+          <p
+            className="font-mono uppercase"
+            style={{ fontSize: 8, color: 'var(--tk-cyan)', letterSpacing: 2, marginTop: 4 }}
+          >
+            ● 发言中
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
@@ -80,6 +120,11 @@ export function RosterGrid({
   speakingAgentId,
   agentNames,
 }: RosterGridProps) {
+  // currentPhase is received from the store but visual layout is driven
+  // by the internal displayStage state machine. currentPhase is kept in
+  // props for potential future use (e.g. phase-specific labels).
+  void currentPhase;
+
   /* ------ derived cell data ------ */
   const cells = useMemo<CellData[]>(() => {
     if (!groups.length) return [];
@@ -119,46 +164,64 @@ export function RosterGrid({
     return byGroup;
   }, [cells]);
 
-  /* ------ staggered reveal (Phase 0 entrance) ------ */
+  /* ------ Display stage state machine ------ */
+  const [displayStage, setDisplayStage] = useState<DisplayStage>('revealing');
   const [activatedCount, setActivatedCount] = useState(0);
 
+  // Stage 1: Staggered reveal (80ms per card)
   useEffect(() => {
-    if (cells.length === 0) return;
+    if (cells.length === 0 || displayStage !== 'revealing') return;
     let count = 0;
     const timer = setInterval(() => {
       count += 1;
       setActivatedCount(count);
-      if (count >= cells.length) clearInterval(timer);
+      if (count >= cells.length) {
+        clearInterval(timer);
+        setDisplayStage('revealed');
+      }
     }, ACTIVATION_DELAY_MS);
-    return () => {
-      clearInterval(timer);
-      setActivatedCount(0);
-    };
-  }, [cells.length]);
+    return () => clearInterval(timer);
+  }, [cells.length, displayStage]);
 
-  /* ------ FLIP animation for Phase 0 -> 1 ------ */
+  // Stage 2: Brief pause after all revealed, then start grouping
+  useEffect(() => {
+    if (displayStage !== 'revealed') return;
+    const timer = setTimeout(() => {
+      setDisplayStage('grouping');
+    }, PAUSE_AFTER_REVEAL_MS);
+    return () => clearTimeout(timer);
+  }, [displayStage]);
+
+  // Stage 4: After FLIP completes, switch to marquee
+  useEffect(() => {
+    if (displayStage !== 'grouping') return;
+    const timer = setTimeout(() => {
+      setDisplayStage('marquee');
+    }, FLIP_DURATION_MS + 200);
+    return () => clearTimeout(timer);
+  }, [displayStage]);
+
+  /* ------ FLIP animation for grouping stage ------ */
   const cellRefs = useRef(new Map<string, HTMLDivElement>());
   const prevPositions = useRef(new Map<string, DOMRect>());
   const [flipState, setFlipState] = useState<'idle' | 'captured' | 'done'>('idle');
 
-  // Step 1: When phase changes to 1, capture current positions
+  // Capture positions right before grouping layout switch
   useEffect(() => {
-    if (currentPhase === 1 && flipState === 'idle') {
-      const positions = new Map<string, DOMRect>();
-      cellRefs.current.forEach((el, id) => {
-        positions.set(id, el.getBoundingClientRect());
-      });
-      prevPositions.current = positions;
-      // Use rAF to let the DOM update to grouped layout before measuring new positions
-      let cancelled = false;
-      requestAnimationFrame(() => {
-        if (!cancelled) setFlipState('captured');
-      });
-      return () => { cancelled = true; };
-    }
-  }, [currentPhase, flipState]);
+    if (displayStage !== 'grouping' || flipState !== 'idle') return;
+    const positions = new Map<string, DOMRect>();
+    cellRefs.current.forEach((el, id) => {
+      positions.set(id, el.getBoundingClientRect());
+    });
+    prevPositions.current = positions;
+    let cancelled = false;
+    requestAnimationFrame(() => {
+      if (!cancelled) setFlipState('captured');
+    });
+    return () => { cancelled = true; };
+  }, [displayStage, flipState]);
 
-  // Step 2: After layout switch, calculate deltas and animate
+  // Animate from old positions to new grouped positions
   useEffect(() => {
     if (flipState !== 'captured') return;
 
@@ -171,12 +234,10 @@ export function RosterGrid({
       const dy = oldRect.top - newRect.top;
       if (dx === 0 && dy === 0) return;
 
-      // Start at old position with skew included
       el.style.transition = 'none';
       el.style.transform = `translate(${dx}px, ${dy}px) skewX(-28deg)`;
       el.getBoundingClientRect(); // force reflow
 
-      // Animate to new position
       el.style.transition = `transform ${FLIP_DURATION_MS}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
       el.style.transform = 'skewX(-28deg)';
     });
@@ -192,35 +253,18 @@ export function RosterGrid({
     return () => clearTimeout(timer);
   }, [flipState]);
 
-  /* ------ hover & detail popup ------ */
-  const [detail, setDetail] = useState<DetailPopup | null>(null);
-  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /* ------ hover state (card id) ------ */
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const handleMouseEnter = useCallback(
-    (cell: CellData, e: React.MouseEvent<HTMLDivElement>) => {
-      const rect = e.currentTarget.getBoundingClientRect();
-      hoverTimer.current = setTimeout(() => {
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
-        const popupW = 280;
-        const popupH = 140;
-        let x = rect.right + 8;
-        let y = rect.top;
-        if (x + popupW > vw) x = rect.left - popupW - 8;
-        if (x < 0) { x = rect.left; y = rect.bottom + 8; }
-        if (y + popupH > vh) y = vh - popupH - 8;
-        setDetail({ cell, x, y });
-      }, HOVER_DELAY_MS);
+    (cell: CellData) => {
+      setHoveredId(cell.characterId);
     },
     [],
   );
 
   const handleMouseLeave = useCallback(() => {
-    if (hoverTimer.current) {
-      clearTimeout(hoverTimer.current);
-      hoverTimer.current = null;
-    }
-    setDetail(null);
+    setHoveredId(null);
   }, []);
 
   const setCellRef = useCallback(
@@ -230,40 +274,6 @@ export function RosterGrid({
     },
     [],
   );
-
-  /* ------ detail portal ------ */
-  function renderDetailPortal() {
-    if (!detail || typeof document === 'undefined') return null;
-    return createPortal(
-      <div
-        className="detail-card visible"
-        style={{ left: detail.x, top: detail.y }}
-      >
-        <p
-          className="font-display font-bold"
-          style={{ fontSize: 14, color: 'var(--rs-white)', marginBottom: 8 }}
-        >
-          {detail.cell.name}
-        </p>
-        <p style={{ fontSize: 11, color: 'var(--rs-gray-light)', marginBottom: 4 }}>
-          {detail.cell.role}
-          {detail.cell.isLeader ? ' \u00B7 Leader' : ''}
-        </p>
-        <p style={{ fontSize: 11, color: 'var(--rs-gray)' }}>
-          {detail.cell.groupName} &middot; {TRACK_LABELS[detail.cell.track]}
-        </p>
-        {speakingAgentId === detail.cell.characterId && (
-          <p
-            className="font-mono mt-2 uppercase"
-            style={{ fontSize: 9, color: 'var(--rs-white)', letterSpacing: 2 }}
-          >
-            ● Speaking
-          </p>
-        )}
-      </div>,
-      document.body,
-    );
-  }
 
   /* ------ empty state ------ */
   if (cells.length === 0) {
@@ -279,22 +289,21 @@ export function RosterGrid({
     );
   }
 
-  /* ------ Phase 0: Unified parallelogram grid ------ */
-  if (currentPhase === 0) {
+  /* ------ Stage: revealing / revealed — flat parallelogram grid ------ */
+  if (displayStage === 'revealing' || displayStage === 'revealed') {
     return (
       <div className="custom-scrollbar flex h-full w-full flex-col overflow-y-auto p-4">
-        <div
-          className="flex flex-wrap justify-center gap-3"
-          style={{ perspective: '1000px' }}
-        >
+        <div className="flex flex-wrap justify-center gap-3">
           {randomCells.map((cell, index) => {
             const isActivated = index < activatedCount;
             const isSpeaking = speakingAgentId === cell.characterId;
+            const isHovered = hoveredId === cell.characterId;
 
             const classNames = [
               'grid-cell',
               isActivated ? 'active' : 'dark',
               isSpeaking ? 'focus' : '',
+              isHovered ? 'hovered' : '',
             ]
               .filter(Boolean)
               .join(' ');
@@ -311,27 +320,84 @@ export function RosterGrid({
                     ? `tekkenReveal 1.2s ease ${index * ACTIVATION_DELAY_MS}ms both`
                     : undefined,
                 }}
-                onMouseEnter={(e) => handleMouseEnter(cell, e)}
+                onMouseEnter={() => handleMouseEnter(cell)}
                 onMouseLeave={handleMouseLeave}
               >
-                <img
-                  src={cell.avatarUrl}
-                  alt={cell.name}
-                  loading="lazy"
-                />
+                <img src={cell.avatarUrl} alt={cell.name} loading="lazy" />
                 <div className="name-label">
                   <span>{cell.name}</span>
                 </div>
+                {isHovered && (
+                  <HoverOverlay cell={cell} speakingAgentId={speakingAgentId} />
+                )}
               </div>
             );
           })}
         </div>
-        {renderDetailPortal()}
       </div>
     );
   }
 
-  /* ------ Phase 1+: Group marquee scrolling ------ */
+  /* ------ Stage: grouping — intermediate grouped grid (FLIP target) ------ */
+  if (displayStage === 'grouping') {
+    return (
+      <div className="custom-scrollbar flex h-full w-full flex-col gap-4 overflow-y-auto p-4">
+        {Array.from(groupedMap.entries()).map(([groupId, members]) => {
+          const isActive = activeGroupId === groupId;
+          return (
+            <div key={groupId} style={{ padding: '12px 16px' }}>
+              <div
+                className="font-mono mb-2 uppercase"
+                style={{
+                  fontSize: 11,
+                  letterSpacing: 2,
+                  color: isActive ? 'var(--tk-cyan)' : 'var(--rs-gray)',
+                }}
+              >
+                组 {groupId}
+                <span style={{ marginLeft: 12, fontSize: 9, color: 'var(--rs-gray-light)', letterSpacing: 1 }}>
+                  {TRACK_LABELS[members[0]?.track ?? 'software']}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {members.map((cell) => {
+                  const isSpeaking = speakingAgentId === cell.characterId;
+                  const isHovered = hoveredId === cell.characterId;
+                  const classNames = [
+                    'grid-cell',
+                    'active',
+                    isSpeaking ? 'focus' : '',
+                    isHovered ? 'hovered' : '',
+                  ].filter(Boolean).join(' ');
+
+                  return (
+                    <div
+                      key={cell.characterId}
+                      ref={setCellRef(cell.characterId)}
+                      className={classNames}
+                      style={{ width: 120, height: 160 }}
+                      onMouseEnter={() => handleMouseEnter(cell)}
+                      onMouseLeave={handleMouseLeave}
+                    >
+                      <img src={cell.avatarUrl} alt={cell.name} loading="lazy" />
+                      <div className="name-label">
+                        <span>{cell.name}</span>
+                      </div>
+                      {isHovered && (
+                        <HoverOverlay cell={cell} speakingAgentId={speakingAgentId} />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  /* ------ Stage: marquee — final horizontal scrolling per group ------ */
   return (
     <div className="custom-scrollbar flex h-full w-full flex-col gap-4 overflow-y-auto p-4">
       {Array.from(groupedMap.entries()).map(([groupId, members]) => {
@@ -383,9 +449,11 @@ export function RosterGrid({
               >
                 {duplicated.map((cell, i) => {
                   const isSpeaking = speakingAgentId === cell.characterId;
+                  const isHovered = hoveredId === cell.characterId;
                   const cardClass = [
                     'marquee-card',
                     isSpeaking ? 'focus' : '',
+                    isHovered ? 'hovered' : '',
                   ]
                     .filter(Boolean)
                     .join(' ');
@@ -399,17 +467,16 @@ export function RosterGrid({
                           : undefined
                       }
                       className={cardClass}
-                      onMouseEnter={(e) => handleMouseEnter(cell, e)}
+                      onMouseEnter={() => handleMouseEnter(cell)}
                       onMouseLeave={handleMouseLeave}
                     >
-                      <img
-                        src={cell.avatarUrl}
-                        alt={cell.name}
-                        loading="lazy"
-                      />
+                      <img src={cell.avatarUrl} alt={cell.name} loading="lazy" />
                       <div className="name-label">
                         <span>{cell.name}</span>
                       </div>
+                      {isHovered && (
+                        <HoverOverlay cell={cell} speakingAgentId={speakingAgentId} />
+                      )}
                     </div>
                   );
                 })}
@@ -418,7 +485,6 @@ export function RosterGrid({
           </div>
         );
       })}
-      {renderDetailPortal()}
     </div>
   );
 }
