@@ -38,17 +38,18 @@ interface CellData {
  *
  *   revealing  → flat grid, cards fade in via pure CSS animation-delay
  *   revealed   → all visible, brief pause, capture FLIP positions
- *   grouping   → DOM switches to grouped layout, FLIP animates cards
- *   marquee    → final: horizontal scrolling per group
+ *   grouping   → DOM switches to grouped layout; per-group cards appear,
+ *                 each group independently transitions to marquee scrolling
+ *                 once its glow finishes (no unified marquee stage)
  */
-type DisplayStage = 'revealing' | 'revealed' | 'grouping' | 'marquee';
+type DisplayStage = 'revealing' | 'revealed' | 'grouping';
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
-const STAGGER_MS = 60;         // delay between each card's CSS animation
-const ANIMATION_MS = 800;      // tekkenReveal animation duration
+const STAGGER_MS = 60;
+const ANIMATION_MS = 800;
 const PAUSE_AFTER_REVEAL_MS = 1200;
 
 const TRACK_LABELS: Record<Track, string> = {
@@ -72,7 +73,7 @@ function seededShuffle<T>(arr: T[], seed: number): T[] {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Hover overlay (rendered inside every card, CSS :hover controls)    */
+/*  Hover overlay                                                      */
 /* ------------------------------------------------------------------ */
 
 function HoverOverlay({ cell, speakingAgentId }: { cell: CellData; speakingAgentId: string | null }) {
@@ -100,6 +101,91 @@ function HoverOverlay({ cell, speakingAgentId }: { cell: CellData; speakingAgent
 }
 
 /* ------------------------------------------------------------------ */
+/*  Per-group row — handles its own grouping → marquee transition      */
+/* ------------------------------------------------------------------ */
+
+const GLOW_DURATION_MS = 1600; // glow animation lasts 0.8s × 2 repeats
+
+interface GroupRowProps {
+  groupId: number;
+  members: CellData[];
+  isActive: boolean;
+  speakingAgentId: string | null;
+  /** Number of cards in this group that should be visible (0..members.length) */
+  visibleCount: number;
+  /** Whether this group's cards are all loaded and glow has been triggered */
+  isGlowing: boolean;
+  setCellRef: (id: string) => (el: HTMLDivElement | null) => void;
+}
+
+function GroupRow({ groupId, members, isActive, speakingAgentId, visibleCount, isGlowing, setCellRef }: GroupRowProps) {
+  const allVisible = visibleCount >= members.length;
+  const [scrolling, setScrolling] = useState(false);
+
+  // Start scrolling independently after this group's glow finishes
+  useEffect(() => {
+    if (!isGlowing || !allVisible) return;
+    const timer = setTimeout(() => setScrolling(true), GLOW_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [isGlowing, allVisible]);
+
+  const marqueeDuration = `${members.length * 8}s`;
+  const duplicated = scrolling ? [...members, ...members] : members;
+
+  return (
+    <div
+      className={isGlowing && !scrolling ? 'group-container glow' : 'group-container'}
+      style={{
+        border: isActive ? '1px solid var(--tk-cyan)' : '1px solid var(--rs-gray-dark)',
+        boxShadow: isActive ? '0 0 15px var(--tk-cyan-glow)' : 'none',
+        padding: '12px 16px',
+        transition: 'border-color 0.3s, box-shadow 0.3s',
+      }}
+    >
+      <div className="font-mono mb-2 uppercase" style={{ fontSize: 11, letterSpacing: 2, color: isActive ? 'var(--tk-cyan)' : 'var(--rs-gray)' }}>
+        组 {groupId}
+        <span style={{ marginLeft: 12, fontSize: 9, color: 'var(--rs-gray-light)', letterSpacing: 1 }}>
+          {TRACK_LABELS[members[0]?.track ?? 'software']}
+        </span>
+      </div>
+
+      <div className="group-marquee" style={{ height: 340 }}>
+        <div
+          className={scrolling ? 'marquee-track' : ''}
+          style={scrolling ? { '--marquee-duration': marqueeDuration } as React.CSSProperties : { display: 'flex', gap: 10, padding: '10px 0' }}
+        >
+          {duplicated.map((cell, i) => {
+            const isOriginal = i < members.length;
+            const cardIdx = isOriginal ? i : i; // for duplicated, still use index
+            const isVisible = scrolling || cardIdx < visibleCount;
+            const isSpeaking = speakingAgentId === cell.characterId;
+            const cardClass = ['marquee-card', isSpeaking ? 'focus' : ''].filter(Boolean).join(' ');
+
+            return (
+              <div
+                key={`${cell.characterId}-${i}`}
+                ref={isOriginal ? setCellRef(cell.characterId) : undefined}
+                className={cardClass}
+                style={scrolling ? undefined : {
+                  opacity: isVisible ? 1 : 0,
+                  transition: 'opacity 0.4s ease',
+                }}
+              >
+                <div className="marquee-card-inner">
+                  <img src={cell.avatarUrl} alt={cell.name} loading="lazy" />
+                  <HoverOverlay cell={cell} speakingAgentId={speakingAgentId} />
+                </div>
+                <div className="name-label"><span>{cell.name}</span></div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -110,7 +196,7 @@ export function RosterGrid({
   speakingAgentId,
   agentNames,
 }: RosterGridProps) {
-  void currentPhase; // visual layout driven by displayStage, not backend phase
+  void currentPhase;
 
   /* ------ derived cell data ------ */
   const cells = useMemo<CellData[]>(() => {
@@ -146,38 +232,32 @@ export function RosterGrid({
     return byGroup;
   }, [cells]);
 
-  /* ------ Display stage state machine (pure CSS stagger, no state-driven re-renders) ------ */
+  /* ------ Display stage state machine ------ */
   const [displayStage, setDisplayStage] = useState<DisplayStage>('revealing');
   const cellRefs = useRef(new Map<string, HTMLDivElement>());
 
-  // Total time for all cards to finish their staggered entrance
   const totalRevealMs = cells.length * STAGGER_MS + ANIMATION_MS;
 
-  // Stage 1→2: After all CSS animations complete, move to 'revealed'
+  // Stage 1→2
   useEffect(() => {
     if (cells.length === 0 || displayStage !== 'revealing') return;
-    const timer = setTimeout(() => {
-      setDisplayStage('revealed');
-    }, totalRevealMs);
+    const timer = setTimeout(() => setDisplayStage('revealed'), totalRevealMs);
     return () => clearTimeout(timer);
   }, [cells.length, displayStage, totalRevealMs]);
 
-  // Stage 2→3: Fade out flat grid, then switch to grouping
+  // Stage 2→3
   useEffect(() => {
     if (displayStage !== 'revealed') return;
-    const timer = setTimeout(() => {
-      setDisplayStage('grouping');
-    }, PAUSE_AFTER_REVEAL_MS);
+    const timer = setTimeout(() => setDisplayStage('grouping'), PAUSE_AFTER_REVEAL_MS);
     return () => clearTimeout(timer);
   }, [displayStage]);
 
-  // Stage 3→4: In grouping, cards appear one by one per group with stagger,
-  // then each group glows when full. After all done, switch to marquee.
+  // Grouping: cards appear one by one, each group glows independently when filled
   const [groupingProgress, setGroupingProgress] = useState(0);
   const [glowingGroups, setGlowingGroups] = useState<Set<number>>(new Set());
   const groupEntries = useMemo(() => Array.from(groupedMap.entries()), [groupedMap]);
   const totalGroupingCards = cells.length;
-  const GROUPING_CARD_DELAY = 80; // ms between each card appearing
+  const GROUPING_CARD_DELAY = 80;
 
   useEffect(() => {
     if (displayStage !== 'grouping') return;
@@ -186,7 +266,7 @@ export function RosterGrid({
       count += 1;
       setGroupingProgress(count);
 
-      // Check if a group just got filled — trigger glow
+      // Check if a group just got filled — trigger glow for THAT group
       let runningTotal = 0;
       for (const [groupId, members] of groupEntries) {
         runningTotal += members.length;
@@ -197,8 +277,6 @@ export function RosterGrid({
 
       if (count >= totalGroupingCards) {
         clearInterval(timer);
-        // Wait for last glow to finish, then switch to marquee
-        setTimeout(() => setDisplayStage('marquee'), 1600);
       }
     }, GROUPING_CARD_DELAY);
     return () => clearInterval(timer);
@@ -267,110 +345,27 @@ export function RosterGrid({
     );
   }
 
-  /* ------ Stage: grouping — cards appear one by one per group ------ */
-  if (displayStage === 'grouping') {
-    let globalCardIndex = 0;
-    return (
-      <div className="custom-scrollbar h-full w-full overflow-y-auto overflow-x-hidden" style={{ background: 'var(--tk-bg)' }}>
-        <div style={{ padding: '20px 40px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {groupEntries.map(([groupId, members]) => {
-            const isGlowing = glowingGroups.has(groupId);
-            return (
-              <div
-                key={groupId}
-                className={isGlowing ? 'group-container glow' : 'group-container'}
-                style={{
-                  border: '1px solid var(--rs-gray-dark)',
-                  padding: '12px 16px',
-                  transition: 'border-color 0.3s, box-shadow 0.3s',
-                }}
-              >
-                <div className="font-mono mb-2 uppercase" style={{ fontSize: 11, letterSpacing: 2, color: 'var(--rs-gray)' }}>
-                  组 {groupId}
-                  <span style={{ marginLeft: 12, fontSize: 9, color: 'var(--rs-gray-light)', letterSpacing: 1 }}>
-                    {TRACK_LABELS[members[0]?.track ?? 'software']}
-                  </span>
-                </div>
-                <div className="group-marquee" style={{ height: 340 }}>
-                  <div style={{ display: 'flex', gap: 10, padding: '10px 0' }}>
-                    {members.map((cell) => {
-                      const cardIdx = globalCardIndex++;
-                      const isVisible = cardIdx < groupingProgress;
-                      return (
-                        <div
-                          key={cell.characterId}
-                          className="marquee-card"
-                          style={{
-                            opacity: isVisible ? 1 : 0,
-                            transition: 'opacity 0.4s ease',
-                          }}
-                        >
-                          <div className="marquee-card-inner">
-                            <img src={cell.avatarUrl} alt={cell.name} loading="lazy" />
-                            <HoverOverlay cell={cell} speakingAgentId={speakingAgentId} />
-                          </div>
-                          <div className="name-label"><span>{cell.name}</span></div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  /* ------ Stage: marquee — final horizontal scrolling per group ------ */
+  /* ------ Stage: grouping — each group independently transitions to scrolling ------ */
+  let globalCardIndex = 0;
   return (
     <div className="custom-scrollbar h-full w-full overflow-y-auto overflow-x-hidden" style={{ background: 'var(--tk-bg)' }}>
       <div style={{ padding: '20px 40px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {Array.from(groupedMap.entries()).map(([groupId, members]) => {
-          const isActive = activeGroupId === groupId;
-          const marqueeDuration = `${members.length * 8}s`;
-          const duplicated = [...members, ...members];
+        {groupEntries.map(([groupId, members]) => {
+          const startIdx = globalCardIndex;
+          globalCardIndex += members.length;
+          const visibleCount = Math.max(0, Math.min(members.length, groupingProgress - startIdx));
 
           return (
-            <div
+            <GroupRow
               key={groupId}
-              style={{
-                border: isActive ? '1px solid var(--tk-cyan)' : '1px solid var(--rs-gray-dark)',
-                boxShadow: isActive ? '0 0 15px var(--tk-cyan-glow)' : 'none',
-                padding: '12px 16px',
-                transition: 'border-color 0.3s, box-shadow 0.3s',
-              }}
-            >
-              <div className="font-mono mb-2 uppercase" style={{ fontSize: 11, letterSpacing: 2, color: isActive ? 'var(--tk-cyan)' : 'var(--rs-gray)' }}>
-                组 {groupId}
-                <span style={{ marginLeft: 12, fontSize: 9, color: 'var(--rs-gray-light)', letterSpacing: 1 }}>
-                  {TRACK_LABELS[members[0]?.track ?? 'software']}
-                </span>
-              </div>
-
-              <div className="group-marquee" style={{ height: 340 }}>
-                <div className="marquee-track" style={{ '--marquee-duration': marqueeDuration } as React.CSSProperties}>
-                  {duplicated.map((cell, i) => {
-                    const isSpeaking = speakingAgentId === cell.characterId;
-                    const cardClass = ['marquee-card', isSpeaking ? 'focus' : ''].filter(Boolean).join(' ');
-                    return (
-                      <div
-                        key={`${cell.characterId}-${i}`}
-                        ref={i < members.length ? setCellRef(cell.characterId) : undefined}
-                        className={cardClass}
-                      >
-                        <div className="marquee-card-inner">
-                          <img src={cell.avatarUrl} alt={cell.name} loading="lazy" />
-                          <HoverOverlay cell={cell} speakingAgentId={speakingAgentId} />
-                        </div>
-                        <div className="name-label"><span>{cell.name}</span></div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+              groupId={groupId}
+              members={members}
+              isActive={activeGroupId === groupId}
+              speakingAgentId={speakingAgentId}
+              visibleCount={visibleCount}
+              isGlowing={glowingGroups.has(groupId)}
+              setCellRef={setCellRef}
+            />
           );
         })}
       </div>

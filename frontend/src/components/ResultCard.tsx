@@ -11,9 +11,9 @@ interface ResultCardProps {
 }
 
 function getRankBorderColor(rank: number): string {
-  if (rank === 1) return 'var(--rs-white)';
-  if (rank <= 3) return 'var(--rs-gray)';
-  return 'var(--rs-gray-dark)';
+  if (rank === 1) return 'var(--tk-pink)';
+  if (rank <= 3) return 'var(--tk-cyan)';
+  return 'var(--tk-cyan-20)';
 }
 
 function getRankLabel(rank: number): string {
@@ -40,49 +40,52 @@ export default function ResultCard({ result, rank }: ResultCardProps) {
     <div
       className="overflow-hidden transition-all duration-200"
       style={{
-        backgroundColor: 'var(--rs-charcoal)',
+        backgroundColor: 'rgba(2, 1, 8, 0.7)',
         border: `1px solid ${borderColor}`,
         borderRadius: '0px',
+        boxShadow: rank === 1 ? '0 0 20px var(--tk-pink-glow)' : rank <= 3 ? '0 0 10px var(--tk-cyan-glow)' : 'none',
+        backdropFilter: 'blur(4px)',
       }}
     >
-      {/* Header — always visible */}
+      {/* Header */}
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
         className="flex w-full cursor-pointer items-center gap-4 px-5 py-4 text-left transition-colors duration-200"
         style={{ backgroundColor: 'transparent' }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = 'var(--rs-gray-dark)';
+          e.currentTarget.style.backgroundColor = 'var(--tk-cyan-10)';
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.backgroundColor = 'transparent';
         }}
       >
-        {/* Rank badge */}
+        {/* Rank badge — pink for 1st, cyan for others */}
         <div
           className="flex h-10 w-10 flex-shrink-0 items-center justify-center"
           style={{
             fontFamily: 'var(--rs-font-mono)',
             fontSize: '12px',
             fontWeight: 700,
-            color: rank === 1 ? 'var(--rs-black)' : 'var(--rs-white)',
-            backgroundColor: rank === 1 ? 'var(--rs-white)' : 'transparent',
+            color: '#fff',
+            backgroundColor: rank === 1 ? 'var(--tk-pink)' : 'transparent',
             border: `1px solid ${borderColor}`,
             letterSpacing: '1px',
             borderRadius: '0px',
+            transform: 'skewX(-8deg)',
           }}
         >
           {getRankLabel(rank)}
         </div>
 
-        {/* Project name & rank label */}
+        {/* Project name */}
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <span
               className="text-xs"
               style={{
                 fontFamily: 'var(--rs-font-mono)',
-                color: 'var(--rs-gray)',
+                color: 'var(--tk-cyan)',
                 letterSpacing: '1px',
               }}
             >
@@ -92,7 +95,8 @@ export default function ResultCard({ result, rank }: ResultCardProps) {
               className="truncate text-lg"
               style={{
                 fontFamily: 'var(--rs-font-display)',
-                color: 'var(--rs-white)',
+                color: '#fff',
+                fontWeight: 400,
               }}
             >
               {result.bpDocument.projectName || `小组 ${result.groupId}`}
@@ -107,14 +111,14 @@ export default function ResultCard({ result, rank }: ResultCardProps) {
             fontFamily: 'var(--rs-font-mono)',
             fontSize: '16px',
             fontWeight: 700,
-            color: 'var(--rs-white)',
+            color: rank === 1 ? 'var(--tk-pink)' : 'var(--tk-cyan)',
           }}
         >
           {result.totalScore.toFixed(1)}
         </div>
 
         {/* Expand toggle */}
-        <div style={{ color: 'var(--rs-gray)' }} className="flex-shrink-0">
+        <div style={{ color: 'var(--tk-cyan)' }} className="flex-shrink-0">
           {expanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
         </div>
       </button>
@@ -135,7 +139,7 @@ export default function ResultCard({ result, rank }: ResultCardProps) {
                 className="mb-2 text-xs uppercase"
                 style={{
                   fontFamily: 'var(--rs-font-display)',
-                  color: 'var(--rs-gray)',
+                  color: 'var(--tk-cyan)',
                   letterSpacing: '2px',
                 }}
               >
@@ -150,7 +154,7 @@ export default function ResultCard({ result, rank }: ResultCardProps) {
                 className="mb-3 text-xs uppercase"
                 style={{
                   fontFamily: 'var(--rs-font-display)',
-                  color: 'var(--rs-gray)',
+                  color: 'var(--tk-cyan)',
                   letterSpacing: '2px',
                 }}
               >
@@ -163,8 +167,8 @@ export default function ResultCard({ result, rank }: ResultCardProps) {
                     key={judge.judgeId}
                     className="px-4 py-3"
                     style={{
-                      backgroundColor: 'var(--rs-black)',
-                      border: '1px solid var(--rs-gray-dark)',
+                      backgroundColor: 'rgba(2, 1, 8, 0.5)',
+                      border: '1px solid var(--tk-cyan-15)',
                       borderRadius: '0px',
                     }}
                   >
@@ -173,7 +177,7 @@ export default function ResultCard({ result, rank }: ResultCardProps) {
                       className="mb-2 text-sm"
                       style={{
                         fontFamily: 'var(--rs-font-display)',
-                        color: 'var(--rs-white)',
+                        color: '#fff',
                         letterSpacing: '1px',
                       }}
                     >
@@ -204,9 +208,9 @@ export default function ResultCard({ result, rank }: ResultCardProps) {
                               className="inline-flex h-6 w-6 items-center justify-center text-xs font-bold"
                               style={{
                                 fontFamily: 'var(--rs-font-mono)',
-                                backgroundColor: 'var(--rs-gray-dark)',
-                                color: 'var(--rs-white)',
-                                border: '1px solid var(--rs-gray-dark)',
+                                backgroundColor: 'var(--tk-cyan-10)',
+                                color: 'var(--tk-cyan)',
+                                border: '1px solid var(--tk-cyan-20)',
                                 borderRadius: '0px',
                               }}
                             >
@@ -237,7 +241,7 @@ export default function ResultCard({ result, rank }: ResultCardProps) {
                         style={{
                           fontFamily: 'var(--rs-font-mono)',
                           color: 'var(--rs-gray)',
-                          borderLeft: '2px solid var(--rs-gray-dark)',
+                          borderLeft: '2px solid var(--tk-pink)',
                           paddingLeft: '12px',
                         }}
                       >

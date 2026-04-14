@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Oswald, JetBrains_Mono } from "next/font/google";
+import { ParticleBackground } from "@/components/ParticleBackground";
+import { CursorStalker } from "@/components/CursorStalker";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
+const oswald = Oswald({
   variable: "--font-display",
   subsets: ["latin"],
-  weight: ["400", "500", "700"],
+  weight: ["200", "300", "400", "500"],
   display: "swap",
 });
 
@@ -29,12 +31,18 @@ export default function RootLayout({
   return (
     <html
       lang="zh-CN"
-      className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} h-full`}
+      className={`${oswald.variable} ${jetbrainsMono.variable} h-full`}
     >
       <body
         className="min-h-full flex flex-col"
-        style={{ background: '#000000', color: '#ededed' }}
+        style={{ background: 'var(--tk-bg)', color: '#fff' }}
       >
+        {/* Tekken 8 cursor stalker — soft-light glow following mouse */}
+        <div id="stalker" />
+        <CursorStalker />
+        {/* Floating particle canvas */}
+        <ParticleBackground />
+        {/* CRT scanline overlay */}
         <div className="scanline" />
         {children}
       </body>

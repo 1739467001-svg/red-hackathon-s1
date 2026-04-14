@@ -49,41 +49,6 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
-
-.dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -107,6 +72,7 @@
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -115,6 +81,34 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* === Tekken 8 Design System === */
+
+:root {
+  /* Core Tekken 8 palette */
+  --tk-bg: #020108;
+  --tk-cyan: #3fd1e7;
+  --tk-cyan-glow: rgba(63, 209, 231, 0.6);
+  --tk-cyan-40: rgba(63, 209, 231, 0.4);
+  --tk-cyan-20: rgba(63, 209, 231, 0.2);
+  --tk-cyan-15: rgba(63, 209, 231, 0.15);
+  --tk-cyan-10: rgba(63, 209, 231, 0.1);
+  --tk-pink: #f50a64;
+  --tk-pink-glow: rgba(245, 10, 100, 0.5);
+  --tk-dark-overlay: #020108;
+  --tk-card-border: rgba(63, 209, 231, 0);
+  --tk-msg-bg: #0a0a14;
+
+  /* Roster screen aliases — all mapped to Tekken 8 palette */
+  --rs-black: #020108;
+  --rs-white: #fff;
+  --rs-charcoal: #0b0f17;
+  --rs-gray-dark: rgba(63, 209, 231, 0.12);
+  --rs-gray: rgba(255, 255, 255, 0.4);
+  --rs-gray-light: rgba(255, 255, 255, 0.6);
+  --rs-font-display: 'Oswald', sans-serif;
+  --rs-font-mono: 'JetBrains Mono', monospace;
 }
 
 @layer base {
@@ -129,30 +123,84 @@
   }
 }
 
-/* === Roster Screen Design System === */
+/* === Tekken 8 Global Background — from layout.css === */
 
-:root {
-  --rs-black: #000000;
-  --rs-white: #ededed;
-  --rs-charcoal: #111111;
-  --rs-gray-dark: #222222;
-  --rs-gray: #555555;
-  --rs-gray-light: #888888;
-  --rs-font-display: 'Space Grotesk', sans-serif;
-  --rs-font-mono: 'JetBrains Mono', monospace;
+html {
+  background: var(--tk-bg);
+  overflow-x: hidden;
+  scrollbar-color: var(--tk-cyan-40) var(--tk-bg);
+  scrollbar-width: thin;
+}
 
-  /* Tekken8 accent colors */
-  --tk-bg: #020108;
-  --tk-cyan: #3fd1e7;
-  --tk-cyan-glow: rgba(63, 209, 231, 0.6);
-  --tk-cyan-40: rgba(63, 209, 231, 0.4);
-  --tk-cyan-20: rgba(63, 209, 231, 0.2);
-  --tk-cyan-15: rgba(63, 209, 231, 0.15);
-  --tk-cyan-10: rgba(63, 209, 231, 0.1);
-  --tk-pink: #f50a64;
-  --tk-dark-overlay: #020108;
-  --tk-card-border: rgba(63, 209, 231, 0);
-  --tk-msg-bg: #0a0a14;
+html::-webkit-scrollbar {
+  width: 4px;
+}
+
+html::-webkit-scrollbar-track {
+  background-color: var(--tk-bg);
+}
+
+html::-webkit-scrollbar-thumb {
+  background: var(--tk-cyan-40);
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background: var(--tk-cyan);
+}
+
+body {
+  font-family: 'Oswald', sans-serif;
+  font-weight: 200;
+  line-height: 1.5;
+  letter-spacing: 0.12em;
+  color: #fff;
+}
+
+/* Fixed background image — from Tekken 8 body::before */
+body::before {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: url('/images/bg.jpg') top center no-repeat;
+  background-size: cover;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: -1;
+}
+
+@media screen and (min-width: 751px) {
+  body::before {
+    background: url('/images/bg_pc.jpg') bottom center no-repeat;
+    background-size: cover;
+    position: fixed;
+  }
+}
+
+/* Cursor stalker — from Tekken 8 #stalker */
+#stalker {
+  display: none;
+}
+
+@media screen and (min-width: 751px) {
+  #stalker {
+    display: block;
+    pointer-events: none;
+    position: fixed;
+    top: -8px;
+    left: -8px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transform: translate(0, 0);
+    transition: 0.2s ease-out;
+    z-index: 9999;
+    opacity: 0.3;
+    box-shadow: 0 0 200px 200px #fff;
+    mix-blend-mode: soft-light;
+  }
 }
 
 /* All custom classes must be in @layer to survive Tailwind CSS 4 purging */
@@ -176,8 +224,7 @@
   }
 
   /*
-   * Grid cell — copied from Tekken8 .charaList li
-   * Reference: character.css #character .charaList li
+   * Grid cell — from Tekken8 .charaList li
    */
   .grid-cell {
     display: block;
@@ -188,7 +235,7 @@
     transform: skewX(-28deg);
   }
 
-  /* Inner container — copied from .charaList li a */
+  /* Inner container — from .charaList li a */
   .grid-cell-inner {
     display: block;
     width: 100%;
@@ -200,7 +247,7 @@
     cursor: pointer;
   }
 
-  /* Dark overlay — copied from .charaList li a::before */
+  /* Dark overlay — from .charaList li a::before */
   .grid-cell-inner::before {
     content: '';
     display: block;
@@ -215,7 +262,7 @@
     transition: 0.3s;
   }
 
-  /* Hover — copied from .charaList li a:hover */
+  /* Hover — from .charaList li a:hover */
   .grid-cell-inner:hover {
     border: 1px solid var(--tk-cyan);
     box-shadow: 0px 0px 15px 0px var(--tk-cyan-glow);
@@ -225,7 +272,7 @@
     opacity: 0;
   }
 
-  /* Image — copied from .charaList li img */
+  /* Image — from .charaList li img */
   .grid-cell img {
     display: block;
     width: 292px;
@@ -238,7 +285,7 @@
     transition: 0.4s;
   }
 
-  /* Hover info overlay — dark bg with text inside the card */
+  /* Hover info overlay */
   .hover-info-overlay {
     position: absolute;
     inset: 0;
@@ -259,7 +306,7 @@
     opacity: 1;
   }
 
-  /* Name label — copied from .charaSlider .sliderItem .name */
+  /* Name label — from .charaSlider .sliderItem .name */
   .grid-cell .name-label {
     display: block;
     background: var(--tk-pink);
@@ -301,7 +348,7 @@
     opacity: 1;
   }
 
-  /* Card flip — smooth 3D rotation with proper z-fighting fix */
+  /* Card flip */
   .card-inner {
     position: relative;
     width: 100%;
@@ -322,7 +369,6 @@
     height: 100%;
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
-    /* Prevent sub-pixel flicker during rotation */
     transform: translateZ(0);
   }
 
@@ -353,12 +399,12 @@
   .trait-bar {
     flex: 1;
     height: 3px;
-    background: var(--rs-gray-dark);
+    background: rgba(63, 209, 231, 0.12);
   }
 
   .trait-fill {
     height: 100%;
-    background: var(--rs-gray-light);
+    background: var(--tk-cyan);
     transition: width 0.3s ease;
   }
 
@@ -367,7 +413,7 @@
     display: flex;
     align-items: center;
     padding: 12px 24px;
-    border-bottom: 1px solid var(--rs-gray-dark);
+    border-bottom: 1px solid rgba(63, 209, 231, 0.15);
     font-family: var(--rs-font-mono);
     font-size: 11px;
     letter-spacing: 2px;
@@ -383,8 +429,8 @@
     font-family: var(--rs-font-mono);
     font-size: 7px;
     letter-spacing: 2px;
-    color: var(--rs-white);
-    background: rgba(240, 237, 230, 0.15);
+    color: var(--tk-cyan);
+    background: var(--tk-cyan-10);
     padding: 2px 6px;
   }
 
@@ -409,15 +455,15 @@
   }
 
   .text-rs-white {
-    color: var(--rs-white);
+    color: #fff;
   }
 
   .text-rs-gray {
-    color: var(--rs-gray);
+    color: rgba(255, 255, 255, 0.4);
   }
 
   .bg-rs-black {
-    background-color: var(--rs-black);
+    background-color: var(--tk-bg);
   }
 
   .bg-rs-charcoal {
@@ -425,13 +471,13 @@
   }
 
   .border-rs-gray-dark {
-    border-color: var(--rs-gray-dark);
+    border-color: rgba(63, 209, 231, 0.12);
   }
 
-  /* Custom scrollbar — minimal dark theme */
+  /* Custom scrollbar — Tekken 8 cyan */
   .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: var(--rs-gray-dark) transparent;
+    scrollbar-color: var(--tk-cyan-40) transparent;
   }
 
   .custom-scrollbar::-webkit-scrollbar {
@@ -444,12 +490,12 @@
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: var(--rs-gray-dark);
+    background: var(--tk-cyan-40);
     border-radius: 2px;
   }
 
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: var(--rs-gray);
+    background: var(--tk-cyan);
   }
 
   /* Group marquee container */
@@ -471,8 +517,7 @@
   }
 
   /*
-   * Marquee card — copied from Tekken8 .charaSlider .sliderItem
-   * Reference: 300×600px at desktop, scaled to 200×320px for 65% panel
+   * Marquee card — from Tekken8 .charaSlider .sliderItem
    */
   .marquee-card {
     display: block;
@@ -484,7 +529,6 @@
     transform: skewX(-28deg);
   }
 
-  /* Inner — copied from .charaSlider .sliderItem a */
   .marquee-card-inner {
     display: block;
     width: 100%;
@@ -496,7 +540,6 @@
     cursor: pointer;
   }
 
-  /* Dark overlay — default transparent for marquee (like reference slider) */
   .marquee-card-inner::before {
     content: '';
     display: block;
@@ -512,7 +555,6 @@
     pointer-events: none;
   }
 
-  /* Image — copied from .charaSlider .sliderItem img at 1280px */
   .marquee-card img {
     display: block;
     width: 420px;
@@ -525,7 +567,6 @@
     transition: 0.4s;
   }
 
-  /* Hover — copied from .charaSlider a:hover */
   .marquee-card-inner:hover {
     border: 1px solid var(--tk-cyan);
     box-shadow: 0px 0px 15px 0px var(--tk-cyan-glow);
@@ -539,7 +580,6 @@
     opacity: 1;
   }
 
-  /* Name label — copied from .charaSlider .sliderItem .name at 1280px */
   .marquee-card .name-label {
     display: block;
     background: var(--tk-pink);
@@ -578,6 +618,82 @@
   .group-container.glow {
     animation: groupGlow 0.8s ease 2;
   }
+
+  /* Tekken 8 skewed button — .btn from layout.css */
+  .tk-btn {
+    display: inline-block;
+    padding: 12px 40px 14px;
+    background: var(--tk-pink);
+    color: #fff;
+    font-family: var(--rs-font-display);
+    font-weight: 400;
+    font-size: 16px;
+    letter-spacing: 0.12em;
+    text-decoration: none;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    transform: skewX(-12deg);
+    transition: 0.3s ease-out;
+  }
+
+  .tk-btn span {
+    display: inline-block;
+    transform: skewX(12deg);
+  }
+
+  .tk-btn:hover {
+    box-shadow: 0 0 20px var(--tk-pink-glow), 0 0 40px var(--tk-pink-glow);
+    background: #ff1a74;
+  }
+
+  /* Tekken 8 outlined button */
+  .tk-btn-outline {
+    display: inline-block;
+    padding: 12px 40px 14px;
+    background: transparent;
+    color: var(--tk-cyan);
+    font-family: var(--rs-font-display);
+    font-weight: 300;
+    font-size: 16px;
+    letter-spacing: 0.12em;
+    text-decoration: none;
+    text-align: center;
+    border: 1px solid var(--tk-cyan);
+    cursor: pointer;
+    position: relative;
+    transform: skewX(-12deg);
+    transition: 0.3s ease-out;
+  }
+
+  .tk-btn-outline span {
+    display: inline-block;
+    transform: skewX(12deg);
+  }
+
+  .tk-btn-outline:hover {
+    background: var(--tk-cyan-10);
+    box-shadow: 0 0 15px var(--tk-cyan-glow);
+  }
+
+  /* Tekken 8 section title — skewed pink background */
+  .tk-section-title {
+    display: inline-block;
+    padding: 8px 40px 10px;
+    background: var(--tk-pink);
+    font-family: var(--rs-font-display);
+    font-size: 60px;
+    font-weight: 500;
+    color: #fff;
+    line-height: 1;
+    transform: skewX(-30deg);
+  }
+
+  .tk-section-title span {
+    display: block;
+    transform: skewX(30deg);
+  }
 }
 
 /* Animations must be outside @layer for keyframes to work */
@@ -588,7 +704,7 @@
 
 @keyframes activateRitual {
   0% { opacity: 0; transform: scale(0.8); }
-  50% { opacity: 0.5; border-color: var(--rs-white); }
+  50% { opacity: 0.5; border-color: var(--tk-cyan); }
   100% { opacity: 1; transform: scale(1); }
 }
 
@@ -606,4 +722,15 @@
   0% { opacity: 0; transform: skewX(-28deg) scale(0.8); }
   50% { opacity: 0.5; }
   100% { opacity: 1; transform: skewX(-28deg) scale(1); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Stalker cursor tracking — requires JS in layout */
+@keyframes stalkerInit {
+  from { opacity: 0; }
+  to { opacity: 0.3; }
 }

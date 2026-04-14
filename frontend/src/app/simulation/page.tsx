@@ -111,14 +111,14 @@ export default function SimulationPage() {
     return (
       <div
         className="flex h-screen items-center justify-center"
-        style={{ background: 'var(--tk-bg)' }}
+        style={{ position: 'relative', zIndex: 2 }}
       >
         <span
           className="font-mono uppercase"
           style={{
             fontSize: 13,
             letterSpacing: 4,
-            color: 'var(--rs-gray)',
+            color: 'var(--tk-cyan)',
           }}
         >
           INITIALIZING...
@@ -130,7 +130,7 @@ export default function SimulationPage() {
   return (
     <div
       className="flex h-screen flex-col"
-      style={{ background: 'var(--tk-bg)' }}
+      style={{ position: 'relative', zIndex: 2 }}
     >
       {/* Status bar */}
       <StatusBar currentPhase={currentPhase} agentCount={totalMembers} />

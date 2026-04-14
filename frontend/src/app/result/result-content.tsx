@@ -20,7 +20,6 @@ export default function ResultContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Determine the simulation ID from URL query or store
   const simulationId = searchParams.get('id') || storeSimulationId;
 
   const hasFetched = useRef(false);
@@ -47,7 +46,6 @@ export default function ResultContent() {
     return () => { cancelled = true; };
   }, [simulationId, storeResults.length, setResults, router]);
 
-  // Sort results by total score descending
   const sortedResults: GroupResult[] = useMemo(
     () => [...storeResults].sort((a, b) => b.totalScore - a.totalScore),
     [storeResults],
@@ -58,17 +56,16 @@ export default function ResultContent() {
     router.push('/');
   }
 
-  // Loading state
   if (loading) {
     return (
       <div
         className="flex min-h-screen items-center justify-center"
-        style={{ backgroundColor: 'var(--rs-black)' }}
+        style={{ position: 'relative', zIndex: 2 }}
       >
         <p
           style={{
             fontFamily: 'var(--rs-font-mono)',
-            color: 'var(--rs-gray)',
+            color: 'var(--tk-cyan)',
             letterSpacing: '3px',
             animation: 'pulse 2s ease-in-out infinite',
           }}
@@ -79,18 +76,17 @@ export default function ResultContent() {
     );
   }
 
-  // Error state
   if (error) {
     return (
       <div
         className="flex min-h-screen flex-col items-center justify-center gap-6"
-        style={{ backgroundColor: 'var(--rs-black)' }}
+        style={{ position: 'relative', zIndex: 2 }}
       >
         <p
           className="text-sm"
           style={{
             fontFamily: 'var(--rs-font-mono)',
-            color: 'var(--rs-gray-light)',
+            color: 'var(--tk-pink)',
           }}
         >
           {error}
@@ -98,26 +94,9 @@ export default function ResultContent() {
         <button
           type="button"
           onClick={handleBackHome}
-          className="cursor-pointer px-6 py-3 transition-all duration-200"
-          style={{
-            fontFamily: 'var(--rs-font-display)',
-            backgroundColor: 'transparent',
-            color: 'var(--rs-white)',
-            border: '1px solid var(--rs-white)',
-            borderRadius: '0px',
-            letterSpacing: '2px',
-            textTransform: 'uppercase',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--rs-white)';
-            e.currentTarget.style.color = 'var(--rs-black)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = 'var(--rs-white)';
-          }}
+          className="tk-btn-outline cursor-pointer"
         >
-          返回首页
+          <span>返回首页</span>
         </button>
       </div>
     );
@@ -126,41 +105,57 @@ export default function ResultContent() {
   return (
     <div
       className="min-h-screen px-4 py-12"
-      style={{ backgroundColor: 'var(--rs-black)' }}
+      style={{ position: 'relative', zIndex: 2 }}
     >
       <div className="mx-auto max-w-5xl">
-        {/* Title */}
-        <h1
-          className="mb-2 text-center"
-          style={{
-            fontFamily: 'var(--rs-font-display)',
-            fontWeight: 700,
-            fontSize: '32px',
-            letterSpacing: '6px',
-            color: 'var(--rs-white)',
-          }}
-        >
-          HinH
-        </h1>
-        <p
-          className="mb-8 text-center"
-          style={{
-            fontFamily: 'var(--rs-font-mono)',
-            fontSize: '12px',
-            letterSpacing: '3px',
-            textTransform: 'uppercase',
-            color: 'var(--rs-gray)',
-          }}
-        >
-          最终排名
-        </p>
+        {/* Title — Tekken 8 skewed pink banner */}
+        <div className="mb-2 text-center">
+          <h1
+            style={{
+              fontFamily: 'var(--rs-font-display)',
+              fontWeight: 500,
+              fontSize: '48px',
+              letterSpacing: '8px',
+              color: '#fff',
+              textShadow: '0 0 30px rgba(245, 10, 100, 0.3)',
+            }}
+          >
+            HinH
+          </h1>
+        </div>
 
-        {/* Divider */}
+        {/* Subtitle in pink */}
+        <div className="mb-8 flex justify-center">
+          <div
+            style={{
+              display: 'inline-block',
+              padding: '4px 24px 6px',
+              background: 'var(--tk-pink)',
+              transform: 'skewX(-12deg)',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: 'var(--rs-font-display)',
+                fontSize: '14px',
+                letterSpacing: '4px',
+                textTransform: 'uppercase',
+                color: '#fff',
+                display: 'block',
+                transform: 'skewX(12deg)',
+              }}
+            >
+              最终排名
+            </span>
+          </div>
+        </div>
+
+        {/* Cyan divider */}
         <div
           className="mx-auto mb-10 w-full max-w-md"
           style={{
             height: '1px',
-            backgroundColor: 'var(--rs-gray-dark)',
+            background: 'linear-gradient(90deg, transparent, var(--tk-cyan-40), transparent)',
           }}
         />
 
@@ -187,42 +182,26 @@ export default function ResultContent() {
           </div>
         )}
 
-        {/* Divider */}
+        {/* Cyan divider */}
         <div
           className="mx-auto mt-10 mb-8 w-full max-w-md"
           style={{
             height: '1px',
-            backgroundColor: 'var(--rs-gray-dark)',
+            background: 'linear-gradient(90deg, transparent, var(--tk-cyan-40), transparent)',
           }}
         />
 
-        {/* Back to home button */}
+        {/* Back button */}
         <div className="flex justify-center">
           <button
             type="button"
             onClick={handleBackHome}
-            className="flex cursor-pointer items-center gap-2 px-8 py-3 transition-all duration-200"
-            style={{
-              fontFamily: 'var(--rs-font-display)',
-              fontSize: '12px',
-              backgroundColor: 'transparent',
-              color: 'var(--rs-white)',
-              border: '1px solid var(--rs-white)',
-              borderRadius: '0px',
-              letterSpacing: '3px',
-              textTransform: 'uppercase',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--rs-white)';
-              e.currentTarget.style.color = 'var(--rs-black)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = 'var(--rs-white)';
-            }}
+            className="tk-btn-outline cursor-pointer"
           >
-            <ArrowLeft size={14} />
-            返回首页
+            <span className="flex items-center gap-2">
+              <ArrowLeft size={14} />
+              返回首页
+            </span>
           </button>
         </div>
       </div>

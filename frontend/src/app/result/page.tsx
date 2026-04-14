@@ -5,12 +5,12 @@ function ResultFallback() {
   return (
     <div
       className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: 'var(--rs-black)' }}
+      style={{ position: 'relative', zIndex: 2 }}
     >
       <p
         style={{
           fontFamily: 'var(--rs-font-mono)',
-          color: 'var(--rs-gray)',
+          color: 'var(--tk-cyan)',
           letterSpacing: '3px',
           animation: 'pulse 2s ease-in-out infinite',
         }}

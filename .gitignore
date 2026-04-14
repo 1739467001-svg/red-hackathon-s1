@@ -15,3 +15,15 @@ node_modules/
 # Worktrees
 .worktrees/
 package-lock.json
+
+# Build artifacts
+.next/
+
+# Tool caches / local config
+.claude/
+.playwright-mcp/
+
+# Test & debug outputs
+test-results/
+screenshots/
+debug-*.png
