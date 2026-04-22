@@ -264,8 +264,9 @@ export class SimulationService {
       rank: idx + 1,
     }));
 
-    const groupsMap = new Map<number, (typeof sim.groups)[0]>(
-      (sim.groups as Array<{ groupId: number; idea: string; track: string; members: unknown[] }>).map((g) => [g.groupId, g]),
+    const groupsRaw = sim.groups as Array<{ groupId: number; idea: string; track: string; members: unknown[] }>;
+    const groupsMap = new Map<number, { groupId: number; idea: string; track: string; members: unknown[] }>(
+      groupsRaw.map((g) => [g.groupId, g] as [number, { groupId: number; idea: string; track: string; members: unknown[] }]),
     );
 
     const reportGroups: ReportGroupEntry[] = results.map((r, idx) => {

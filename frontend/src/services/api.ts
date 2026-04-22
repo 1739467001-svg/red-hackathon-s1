@@ -1,4 +1,4 @@
-import type { SimulationResult, GroupInfo } from '@/types/simulation';
+import type { SimulationResult, SimulationReport, GroupInfo } from '@/types/simulation';
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4811';
 
