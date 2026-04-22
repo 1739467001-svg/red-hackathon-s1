@@ -30,4 +30,9 @@ export class SimulationController {
   result(@Param('id') id: string) {
     return this.simulationService.getResult(id);
   }
+
+  @Get(':id/report')
+  report(@Param('id') id: string) {
+    return this.simulationService.getReport(id);
+  }
 }

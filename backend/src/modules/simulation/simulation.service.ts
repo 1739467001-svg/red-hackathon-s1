@@ -16,6 +16,12 @@ import type {
   TypingCallback,
   ToolCallCallback,
 } from './phase-executor';
+import type {
+  AwardTier,
+  AwardInfo,
+  ReportGroupEntry,
+  SimulationReport,
+} from './interfaces/simulation.interfaces';
 import { GroupRunner } from './group-runner';
 import { JudgeRunner } from './judge-runner';
 import type { GroupAssignment } from './interfaces/simulation.interfaces';
@@ -232,5 +238,80 @@ export class SimulationService {
       order: { createdAt: 'ASC' },
     });
     return { results, messages };
+  }
+
+  async getReport(simulationId: string): Promise<SimulationReport> {
+    const sim = await this.simulationRepo.findOneBy({ id: simulationId });
+    if (!sim) throw new NotFoundException();
+
+    const results = await this.resultRepo.find({
+      where: { simulationId },
+      order: { totalScore: 'DESC' },
+    });
+
+    const AWARD_TIERS: { tier: AwardTier; label: string }[] = [
+      { tier: 'gold', label: '冠军' },
+      { tier: 'silver', label: '亚军' },
+      { tier: 'bronze', label: '季军' },
+    ];
+
+    const awards: AwardInfo[] = results.map((r, idx) => ({
+      tier: idx < 3 ? AWARD_TIERS[idx].tier : 'honorable',
+      label: idx < 3 ? AWARD_TIERS[idx].label : '优秀奖',
+      groupId: r.groupId,
+      projectName: (r.bpDocument as { projectName?: string })?.projectName || `组${r.groupId}`,
+      totalScore: Number(r.totalScore.toFixed(2)),
+      rank: idx + 1,
+    }));
+
+    const groupsMap = new Map<number, (typeof sim.groups)[0]>(
+      (sim.groups as Array<{ groupId: number; idea: string; track: string; members: unknown[] }>).map((g) => [g.groupId, g]),
+    );
+
+    const reportGroups: ReportGroupEntry[] = results.map((r, idx) => {
+      const groupInfo = groupsMap.get(r.groupId);
+      const scoresArr = r.scores as Array<{
+        judgeId: string;
+        judgeName: string;
+        innovation: number;
+        presentation: number;
+        completeness: number;
+        businessPotential: number;
+        techDifficulty: number;
+        comment: string;
+        suggestion: string;
+      }>;
+      const count = scoresArr.length || 1;
+      const dimAvg = {
+        innovation: Number((scoresArr.reduce((s, j) => s + (j.innovation || 0), 0) / count).toFixed(2)),
+        presentation: Number((scoresArr.reduce((s, j) => s + (j.presentation || 0), 0) / count).toFixed(2)),
+        completeness: Number((scoresArr.reduce((s, j) => s + (j.completeness || 0), 0) / count).toFixed(2)),
+        businessPotential: Number((scoresArr.reduce((s, j) => s + (j.businessPotential || 0), 0) / count).toFixed(2)),
+        techDifficulty: Number((scoresArr.reduce((s, j) => s + (j.techDifficulty || 0), 0) / count).toFixed(2)),
+      };
+
+      return {
+        rank: idx + 1,
+        award: awards[idx],
+        groupId: r.groupId,
+        idea: groupInfo?.idea || '',
+        track: (groupInfo?.track || 'software') as 'software' | 'hardware',
+        members: (groupInfo?.members || []) as ReportGroupEntry['members'],
+        bpDocument: r.bpDocument as ReportGroupEntry['bpDocument'],
+        scores: scoresArr,
+        totalScore: Number(r.totalScore.toFixed(2)),
+        dimensionAverages: dimAvg,
+      };
+    });
+
+    return {
+      simulationId,
+      createdAt: sim.createdAt.toISOString(),
+      ideas: sim.ideas as string[],
+      totalGroups: results.length,
+      winner: awards[0],
+      awards,
+      groups: reportGroups,
+    };
   }
 }

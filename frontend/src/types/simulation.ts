@@ -68,3 +68,49 @@ export interface SimulationResult {
   results: GroupResult[];
   messages: SimulationMessage[];
 }
+
+export type AwardTier = 'gold' | 'silver' | 'bronze' | 'honorable';
+
+export interface AwardInfo {
+  tier: AwardTier;
+  label: string;
+  groupId: number;
+  projectName: string;
+  totalScore: number;
+  rank: number;
+}
+
+export interface DimensionAverages {
+  innovation: number;
+  presentation: number;
+  completeness: number;
+  businessPotential: number;
+  techDifficulty: number;
+}
+
+export interface ReportGroupEntry {
+  rank: number;
+  award: AwardInfo;
+  groupId: number;
+  idea: string;
+  track: Track;
+  members: {
+    characterId: string;
+    role: string;
+    isLeader: boolean;
+  }[];
+  bpDocument: BPDocument;
+  scores: JudgeScore[];
+  totalScore: number;
+  dimensionAverages: DimensionAverages;
+}
+
+export interface SimulationReport {
+  simulationId: string;
+  createdAt: string;
+  ideas: string[];
+  totalGroups: number;
+  winner: AwardInfo;
+  awards: AwardInfo[];
+  groups: ReportGroupEntry[];
+}

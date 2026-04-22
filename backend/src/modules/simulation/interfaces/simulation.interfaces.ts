@@ -30,6 +30,47 @@ export interface BPDocument {
   advantage: string;
 }
 
+export type AwardTier = 'gold' | 'silver' | 'bronze' | 'honorable';
+
+export interface AwardInfo {
+  tier: AwardTier;
+  label: string; // 冠军 / 亚军 / 季军 / 优秀奖
+  groupId: number;
+  projectName: string;
+  totalScore: number;
+  rank: number;
+}
+
+export interface ReportGroupEntry {
+  rank: number;
+  award: AwardInfo;
+  groupId: number;
+  idea: string;
+  track: Track;
+  members: GroupMember[];
+  bpDocument: BPDocument;
+  scores: JudgeScore[];
+  totalScore: number;
+  /** Per-dimension average across all judges */
+  dimensionAverages: {
+    innovation: number;
+    presentation: number;
+    completeness: number;
+    businessPotential: number;
+    techDifficulty: number;
+  };
+}
+
+export interface SimulationReport {
+  simulationId: string;
+  createdAt: string;
+  ideas: string[];
+  totalGroups: number;
+  winner: AwardInfo;
+  awards: AwardInfo[];
+  groups: ReportGroupEntry[];
+}
+
 export interface JudgeScore {
   judgeId: string;
   judgeName: string;

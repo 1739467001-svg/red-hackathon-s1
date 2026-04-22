@@ -23,3 +23,9 @@ export async function getSimulationResult(id: string): Promise<SimulationResult>
   if (!res.ok) throw new Error('Failed to get result');
   return res.json();
 }
+
+export async function getSimulationReport(id: string): Promise<SimulationReport> {
+  const res = await fetch(`${API_URL}/api/simulation/${id}/report`);
+  if (!res.ok) throw new Error('Failed to get report');
+  return res.json();
+}
