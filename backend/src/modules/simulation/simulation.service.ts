@@ -241,7 +241,12 @@ export class SimulationService {
   }
 
   async getReport(simulationId: string): Promise<SimulationReport> {
-    const sim = await this.simulationRepo.findOneBy({ id: simulationId });
+    let sim;
+    try {
+      sim = await this.simulationRepo.findOneBy({ id: simulationId });
+    } catch {
+      throw new NotFoundException();
+    }
     if (!sim) throw new NotFoundException();
 
     const results = await this.resultRepo.find({
