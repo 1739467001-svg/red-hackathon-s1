@@ -16,7 +16,9 @@ const PHASE_LABELS: Record<number, string> = {
   0: 'GROUPING',
   1: 'DISCUSSION',
   2: 'DEVELOPMENT',
-  3: 'DEFENSE',
+  3: 'PRESENTATION',
+  4: 'JUDGING',
+  5: 'RESULTS',
 };
 
 /* ------------------------------------------------------------------ */
@@ -67,6 +69,8 @@ export default function SimulationPage() {
     else if (currentPhase === 1) setActiveTab(1);
     else if (currentPhase === 2) setActiveTab(2);
     else if (currentPhase === 3) setActiveTab(3);
+    else if (currentPhase === 4) setActiveTab(4);
+    else if (currentPhase === 5) setActiveTab(5);
   }, [currentPhase]);
 
   // Build agent name map from messages
@@ -100,12 +104,8 @@ export default function SimulationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simulationId]);
 
-  // Navigate to results when simulation completes
-  useEffect(() => {
-    if (results.length > 0) {
-      router.push('/result');
-    }
-  }, [results, router]);
+  // Navigate to results when simulation completes (only after phase 5 public announcement)
+  // We stay on simulation page during phase 5 to show ranking, only navigate on explicit user action
 
   const typingAgent = typingAgents.get(activeGroupTab) ?? null;
   const speakingAgentId = typingAgent?.agentId ?? null;

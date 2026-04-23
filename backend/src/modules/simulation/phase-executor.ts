@@ -74,6 +74,38 @@ export function buildToolCallCb(
 /** Target members per group (groups will have 3-6 members via round-robin) */
 const TARGET_GROUP_SIZE = 5;
 
+/**
+ * 成果展示的5个维度，每个组员负责一个方面
+ * 顺序对应 agents 数组（0=队长/产品, 1=前端, 2=后端, 3=设计师, 4=运营）
+ */
+const PRESENTATION_ASPECTS = [
+  {
+    title: '产品介绍',
+    prompt:
+      '请以产品经理视角，介绍产品的核心功能、用户体验设计和产品路线图。重点突出产品的独特价值主张，不超过200字。',
+  },
+  {
+    title: '可行性分析与竞品分析',
+    prompt:
+      '请从技术/前端视角，分析该产品的技术可行性，并对比主要竞品的优劣势，说明我们的差异化优势。不超过200字。',
+  },
+  {
+    title: '解决的痛点与伪命题辨析',
+    prompt:
+      '请从后端/技术视角，深入分析该产品解决的真实痛点，并辨析哪些需求是真实的、哪些可能是伪命题，如何验证需求真实性。不超过200字。',
+  },
+  {
+    title: '商业化路径',
+    prompt:
+      '请从设计/用户视角，阐述产品的商业化策略：盈利模式、定价策略、目标市场规模、用户增长路径。不超过200字。',
+  },
+  {
+    title: '后续改善与完善计划',
+    prompt:
+      '请从运营视角，制定产品的迭代计划：短期（3个月）、中期（1年）、长期（3年）的改善方向和完善计划，以及关键里程碑。不超过200字。',
+  },
+];
+
 export class PhaseExecutor {
   constructor(
     private llmService: LlmService,
@@ -384,6 +416,56 @@ export class PhaseExecutor {
         : this.fallbackBP(bpRaw);
     } catch {
       return this.fallbackBP(bpRaw);
+    }
+  }
+
+  /**
+   * Phase 3a: 成果展示
+   * 5名组员各自介绍一个方面：产品介绍/可行性分析/痛点辨析/商业化/改善计划
+   */
+  async executePhase3a(
+    agents: Agent[],
+    groupId: number,
+    bp: BPDocument,
+    onMessage: MessageCallback,
+    onTyping?: TypingCallback,
+  ): Promise<void> {
+    const history: ChatMessage[] = [
+      {
+        role: 'assistant',
+        content: `[项目BP]: ${JSON.stringify(bp)}`,
+      },
+    ];
+
+    const emitTyping = (agent: Agent, isTyping: boolean) =>
+      onTyping?.(buildTypingPayload(groupId, agent, isTyping));
+
+    // 每个 agent 对应一个展示方面
+    for (let i = 0; i < agents.length; i++) {
+      const agent = agents[i];
+      const aspect = PRESENTATION_ASPECTS[i % PRESENTATION_ASPECTS.length];
+
+      emitTyping(agent, true);
+      const speech = await agent.speak(
+        history,
+        `【成果展示环节 - ${aspect.title}】\n基于团队的项目BP文档，${aspect.prompt}\n请以你的角色身份（${agent.role}）进行展示，语言生动有力。`,
+      );
+      emitTyping(agent, false);
+
+      history.push({
+        role: 'assistant',
+        content: `[${agent.character.name}(${aspect.title})]: ${speech}`,
+      });
+
+      await onMessage({
+        groupId,
+        agentId: agent.character.id,
+        agentName: agent.character.name,
+        agentRole: agent.role,
+        isLeader: agent.isLeader,
+        content: `【${aspect.title}】\n${speech}`,
+        phase: 3,
+      });
     }
   }
 

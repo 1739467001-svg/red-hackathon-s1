@@ -5,8 +5,8 @@ export const PHASE_TABS = [
   { id: 1, short: '讨论',   full: '自由讨论',   phase: 1 },
   { id: 2, short: '开发',   full: '开发阶段',   phase: 2 },
   { id: 3, short: '成果',   full: '成果展示',   phase: 3 },
-  { id: 4, short: '评分',   full: '评委评分',   phase: 3 },
-  { id: 5, short: '公示',   full: '结果公示',   phase: 3 },
+  { id: 4, short: '评分',   full: '评委评分',   phase: 4 },
+  { id: 5, short: '公示',   full: '结果公示',   phase: 5 },
 ] as const;
 
 export type PhaseTabId = (typeof PHASE_TABS)[number]['id'];
@@ -34,11 +34,7 @@ export function PhaseIndicator({ currentPhase, activeTab, onTabChange }: PhaseIn
           // Tab 3/4/5 all require phase 3
           const isReached = currentPhase >= tab.phase;
           // Currently running indicator: the phase is exactly at this tab's phase
-          const isRunning =
-            currentPhase === tab.phase &&
-            ((tab.id === 1 && currentPhase === 1) ||
-              (tab.id === 2 && currentPhase === 2) ||
-              (tab.id >= 3 && currentPhase === 3));
+          const isRunning = currentPhase === tab.phase;
 
           return (
             <button

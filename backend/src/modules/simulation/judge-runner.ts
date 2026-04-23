@@ -22,6 +22,14 @@ function buildJudgeSystemPrompt(judge: JudgeData): string {
 export class JudgeRunner {
   constructor(private llmService: LlmService) {}
 
+  /**
+   * Phase 4: 评委评分
+   * 1. 队长陈述BP
+   * 2. LLM 动态选出 2-3 位感兴趣的评委提问
+   * 3. 选出最合适的组员作答
+   * 4. 6 位评委并行打分（5个维度）
+   * 所有消息使用 phase: 4
+   */
   async evaluate(
     group: GroupAssignment,
     agents: Agent[],
@@ -46,7 +54,7 @@ export class JudgeRunner {
         isTyping,
       });
 
-    // Step 1: Leader presents BP
+    // Step 1: Leader presents BP (phase 4)
     emitAgentTyping(leader, true);
     const presentation = await leader.speak(
       history,
@@ -64,7 +72,7 @@ export class JudgeRunner {
       agentRole: leader.role,
       isLeader: true,
       content: presentation,
-      phase: 3,
+      phase: 4,
     });
 
     // Step 2: Select 2-3 judges to ask questions
@@ -85,7 +93,7 @@ export class JudgeRunner {
       activeJudges = [judgeList[0], judgeList[1]]; // fallback
     }
 
-    // Step 3: Selected judges ask questions, team answers
+    // Step 3: Selected judges ask questions, team answers (phase 4)
     for (const judge of activeJudges) {
       emitJudgeTyping(judge, true);
       const question = await this.llmService.chat(
@@ -107,7 +115,7 @@ export class JudgeRunner {
         agentRole: JUDGE_ROLE,
         isLeader: false,
         content: question,
-        phase: 3,
+        phase: 4,
       });
 
       // Decide who answers (leader or relevant member)
@@ -129,11 +137,11 @@ export class JudgeRunner {
         agentRole: answerer.role,
         isLeader: answerer.isLeader,
         content: answer,
-        phase: 3,
+        phase: 4,
       });
     }
 
-    // Step 4: All judges score (in parallel)
+    // Step 4: All judges score in parallel (phase 4)
     const scores: JudgeScore[] = await Promise.all(
       judgeList.map(async (judge) => {
         const scorePrompt = `请对这个项目打分和点评。
@@ -152,7 +160,7 @@ export class JudgeRunner {
           agentRole: JUDGE_ROLE,
           isLeader: false,
           content: scoreRaw,
-          phase: 3,
+          phase: 4,
         });
 
         try {

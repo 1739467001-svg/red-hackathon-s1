@@ -61,6 +61,20 @@ export class GroupRunner {
     );
   }
 
+  async runPhase3a(
+    bp: BPDocument,
+    onMessage: MessageCallback,
+    onTyping?: TypingCallback,
+  ): Promise<void> {
+    return this.phaseExecutor.executePhase3a(
+      this.agents,
+      this.group.groupId,
+      bp,
+      onMessage,
+      onTyping,
+    );
+  }
+
   getAgents(): Agent[] {
     return this.agents;
   }

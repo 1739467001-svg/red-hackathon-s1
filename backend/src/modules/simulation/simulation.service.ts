@@ -109,7 +109,7 @@ export class SimulationService {
         new GroupRunner(g, characters, this.llmService, this.searchService),
     );
 
-    // Phase 1: All groups in parallel
+    // ── Phase 1: 自由讨论（所有组并行）──────────────────────────────
     subject?.next({
       data: JSON.stringify({ type: 'phase_change', phase: 1 }),
     });
@@ -118,12 +118,11 @@ export class SimulationService {
       runners.map((r) => r.runPhase1(onMessage, onTyping, onToolCall)),
     );
 
-    // Phase 2: All groups in parallel
+    // ── Phase 2: 开发阶段（所有组并行）──────────────────────────────
     subject?.next({
       data: JSON.stringify({ type: 'phase_change', phase: 2 }),
     });
     await this.simulationRepo.update(simulationId, { currentPhase: 2 });
-    // Get phase 1 summaries (last message from each group's leader in phase 1)
     const bpResults = await Promise.all(
       runners.map(async (r) => {
         const group = r.getGroup();
@@ -146,11 +145,20 @@ export class SimulationService {
       }),
     );
 
-    // Phase 3: Sequential judging
+    // ── Phase 3: 成果展示（所有组并行，每人介绍一个方面）────────────
     subject?.next({
       data: JSON.stringify({ type: 'phase_change', phase: 3 }),
     });
     await this.simulationRepo.update(simulationId, { currentPhase: 3 });
+    await Promise.all(
+      runners.map((r, i) => r.runPhase3a(bpResults[i], onMessage, onTyping)),
+    );
+
+    // ── Phase 4: 评委评分（逐组顺序进行，避免 LLM 并发过高）────────
+    subject?.next({
+      data: JSON.stringify({ type: 'phase_change', phase: 4 }),
+    });
+    await this.simulationRepo.update(simulationId, { currentPhase: 4 });
     const judgeRunner = new JudgeRunner(this.llmService);
 
     for (let i = 0; i < runners.length; i++) {
@@ -185,7 +193,30 @@ export class SimulationService {
       });
     }
 
-    // Complete
+    // ── Phase 5: 结果公示（推送排名数据）────────────────────────────
+    subject?.next({
+      data: JSON.stringify({ type: 'phase_change', phase: 5 }),
+    });
+    await this.simulationRepo.update(simulationId, { currentPhase: 5 });
+
+    // 推送排名数据，让前端可以直接展示
+    const allResults = await this.resultRepo.find({
+      where: { simulationId },
+      order: { totalScore: 'DESC' },
+    });
+    const rankingData = allResults.map((r, idx) => ({
+      rank: idx + 1,
+      groupId: r.groupId,
+      projectName: (r.bpDocument as { projectName?: string })?.projectName || `组${r.groupId}`,
+      totalScore: Number(r.totalScore.toFixed(2)),
+      tier: idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : 'honorable',
+      label: idx === 0 ? '冠军' : idx === 1 ? '亚军' : idx === 2 ? '季军' : '优秀奖',
+    }));
+    subject?.next({
+      data: JSON.stringify({ type: 'ranking', simulationId, ranking: rankingData }),
+    });
+
+    // ── Complete ────────────────────────────────────────────────────
     await this.simulationRepo.update(simulationId, {
       status: 'completed' as const,
     });

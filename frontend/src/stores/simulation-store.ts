@@ -9,12 +9,22 @@ import * as api from '@/services/api';
 import { API_URL } from '@/services/api';
 import { getAvatarUrl } from '@/lib/avatar';
 
+export interface RankingEntry {
+  rank: number;
+  groupId: number;
+  projectName: string;
+  totalScore: number;
+  tier: string;
+  label: string;
+}
+
 interface SimulationState {
   simulationId: string | null;
   currentPhase: number;
   groups: GroupInfo[];
   messages: Map<number, SimulationMessage[]>;
   results: GroupResult[];
+  ranking: RankingEntry[];
   activeGroupTab: number;
   isRunning: boolean;
   error: string | null;
@@ -27,6 +37,7 @@ interface SimulationState {
   setPhase: (phase: number) => void;
   setGroups: (groups: GroupInfo[]) => void;
   setResults: (results: GroupResult[]) => void;
+  setRanking: (ranking: RankingEntry[]) => void;
   setActiveGroupTab: (tab: number) => void;
   setTypingAgent: (groupId: number, agent: TypingAgent | null) => void;
   connectSSE: (simulationId: string) => void;
@@ -40,6 +51,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
   groups: [],
   messages: new Map(),
   results: [],
+  ranking: [],
   activeGroupTab: 1,
   isRunning: false,
   error: null,
@@ -48,7 +60,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
   startSimulation: async (ideas: string[]) => {
     const { simulationId } = await api.startSimulation(ideas);
-    set({ simulationId, isRunning: true, error: null, messages: new Map(), results: [], groups: [], currentPhase: 0, activeGroupTab: 1, typingAgents: new Map() });
+    set({ simulationId, isRunning: true, error: null, messages: new Map(), results: [], ranking: [], groups: [], currentPhase: 0, activeGroupTab: 1, typingAgents: new Map() });
     get().connectSSE(simulationId);
   },
 
@@ -72,6 +84,10 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
 
   setResults: (results: GroupResult[]) => {
     set({ results });
+  },
+
+  setRanking: (ranking: RankingEntry[]) => {
+    set({ ranking });
   },
 
   setActiveGroupTab: (tab: number) => {
@@ -182,6 +198,12 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
               }
             }
             break;
+          case 'ranking': {
+            if (raw.ranking) {
+              get().setRanking(raw.ranking as RankingEntry[]);
+            }
+            break;
+          }
           case 'error':
             set({ error: raw.message || '模拟过程中发生错误', isRunning: false, typingAgents: new Map() });
             get().disconnect();
@@ -233,6 +255,7 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
       groups: [],
       messages: new Map(),
       results: [],
+      ranking: [],
       activeGroupTab: 1,
       isRunning: false,
       error: null,

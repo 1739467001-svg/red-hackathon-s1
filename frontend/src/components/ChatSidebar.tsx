@@ -6,6 +6,8 @@ import type { SimulationMessage, TypingAgent, GroupResult } from '@/types/simula
 import MarkdownContent from './MarkdownContent';
 import { getAvatarUrl } from '@/lib/avatar';
 import type { PhaseTabId } from './PhaseIndicator';
+import type { RankingEntry } from '@/stores/simulation-store';
+import { useRouter } from 'next/navigation';
 
 /* ------------------------------------------------------------------ */
 /*  Message Item                                                        */
@@ -225,6 +227,145 @@ function TypingIndicator({ agent }: { agent: TypingAgent }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Ranking Panel (tab 5: 结果公示) — 实时排名 + 导出 Report              */
+/* ------------------------------------------------------------------ */
+
+function RankingPanel({ ranking, simulationId }: { ranking: RankingEntry[]; simulationId: string | null }) {
+  const router = useRouter();
+
+  const tierColors: Record<string, string> = {
+    gold: 'var(--tk-pink)',
+    silver: 'var(--tk-cyan)',
+    bronze: '#f5a623',
+    honorable: 'var(--rs-gray)',
+  };
+
+  const tierBg: Record<string, string> = {
+    gold: 'rgba(255,60,120,0.08)',
+    silver: 'rgba(0,230,255,0.06)',
+    bronze: 'rgba(245,166,35,0.06)',
+    honorable: 'rgba(255,255,255,0.02)',
+  };
+
+  return (
+    <div className="custom-scrollbar flex-1 overflow-y-auto p-3 space-y-3">
+      <p
+        className="text-center mb-4"
+        style={{
+          fontFamily: 'var(--rs-font-display)',
+          color: 'var(--tk-cyan)',
+          letterSpacing: '4px',
+          fontSize: '0.75rem',
+        }}
+      >
+        ── 最终排名 ──
+      </p>
+
+      {ranking.map((r) => (
+        <div
+          key={r.groupId}
+          className="p-3"
+          style={{
+            border: `1px solid ${tierColors[r.tier] ?? 'var(--tk-cyan-20)'}`,
+            backgroundColor: tierBg[r.tier] ?? 'transparent',
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <span
+              style={{
+                fontFamily: 'var(--rs-font-display)',
+                fontSize: '1.1rem',
+                fontWeight: 900,
+                color: tierColors[r.tier] ?? 'var(--rs-white)',
+                letterSpacing: '2px',
+                minWidth: '28px',
+              }}
+            >
+              #{r.rank}
+            </span>
+            <div className="flex-1 min-w-0">
+              <div
+                style={{
+                  fontFamily: 'var(--rs-font-display)',
+                  color: tierColors[r.tier] ?? 'var(--rs-white)',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  letterSpacing: '2px',
+                }}
+              >
+                {r.projectName}
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--rs-font-mono)',
+                  fontSize: '0.65rem',
+                  color: 'var(--rs-gray)',
+                  letterSpacing: '1px',
+                }}
+              >
+                组 {r.groupId} · {r.label}
+              </div>
+            </div>
+            <span
+              style={{
+                fontFamily: 'var(--rs-font-mono)',
+                color: tierColors[r.tier] ?? 'var(--rs-white)',
+                fontSize: '1.2rem',
+                fontWeight: 700,
+              }}
+            >
+              {r.totalScore.toFixed(1)}
+            </span>
+          </div>
+        </div>
+      ))}
+
+      {/* 导出 Report 按鈕 */}
+      {simulationId && (
+        <div className="pt-4 space-y-2">
+          <button
+            type="button"
+            onClick={() => router.push(`/report?id=${simulationId}`)}
+            className="w-full py-3 text-center transition-all duration-200"
+            style={{
+              fontFamily: 'var(--rs-font-display)',
+              letterSpacing: '3px',
+              fontSize: '0.8rem',
+              backgroundColor: 'var(--tk-pink)',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+          >
+            导出完整 REPORT
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push(`/result?id=${simulationId}`)}
+            className="w-full py-2 text-center transition-all duration-200"
+            style={{
+              fontFamily: 'var(--rs-font-display)',
+              letterSpacing: '3px',
+              fontSize: '0.75rem',
+              backgroundColor: 'transparent',
+              color: 'var(--tk-cyan)',
+              border: '1px solid var(--tk-cyan-20)',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--tk-cyan)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--tk-cyan-20)'; }}
+          >
+            查看颁奖台
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Result Panel (tab 5: 结果公示)                                      */
 /* ------------------------------------------------------------------ */
 
@@ -424,6 +565,9 @@ export function ChatSidebar({ activeTab }: ChatSidebarProps) {
   const typingAgents = useSimulationStore((s) => s.typingAgents);
   const groups = useSimulationStore((s) => s.groups);
   const results = useSimulationStore((s) => s.results);
+  const ranking = useSimulationStore((s) => s.ranking);
+  const simulationId = useSimulationStore((s) => s.simulationId);
+  const isRunning = useSimulationStore((s) => s.isRunning);
   const currentPhase = useSimulationStore((s) => s.currentPhase);
 
   const groupIds = groups.length > 0 ? groups.map((g) => g.groupId) : [];
@@ -443,16 +587,12 @@ export function ChatSidebar({ activeTab }: ChatSidebarProps) {
       if (activeTab === 1) return all.filter((m) => m.phase === 1);
       if (activeTab === 2) return all.filter((m) => m.phase === 2);
       if (activeTab === 3) {
-        // 成果展示: phase 3 messages from leader (BP presentation)
-        return all.filter(
-          (m) => m.phase === 3 && m.agent?.isLeader,
-        );
+        // 成果展示: phase 3 messages (5人各讲一个方面)
+        return all.filter((m) => m.phase === 3);
       }
       if (activeTab === 4) {
-        // 评委评分: phase 3 messages from judges or judge Q&A
-        return all.filter(
-          (m) => m.phase === 3 && (m.agent?.role === '评委' || !m.agent?.isLeader),
-        );
+        // 评委评分: phase 4 messages (评委提问+组员作答+打分)
+        return all.filter((m) => m.phase === 4);
       }
       // tab 0 (分组): show all phase 0 or just a placeholder
       return all.filter((m) => m.phase === 0);
@@ -493,7 +633,13 @@ export function ChatSidebar({ activeTab }: ChatSidebarProps) {
   if (activeTab === 5) {
     return (
       <div className="flex h-full flex-col" style={{ backgroundColor: 'var(--tk-bg)' }}>
-        <ResultPanel results={results} />
+        {ranking.length > 0 ? (
+          <RankingPanel ranking={ranking} simulationId={simulationId} />
+        ) : results.length > 0 ? (
+          <ResultPanel results={results} />
+        ) : (
+          <LockedPanel label={isRunning ? '正在统计结果...' : '等待评审结束...'} />
+        )}
       </div>
     );
   }
@@ -508,7 +654,7 @@ export function ChatSidebar({ activeTab }: ChatSidebarProps) {
   }
 
   // Tabs 1-4: message view
-  const phaseRequired: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 3 };
+  const phaseRequired: Record<number, number> = { 1: 1, 2: 2, 3: 3, 4: 4 };
   const required = phaseRequired[activeTab] ?? 1;
   if (currentPhase < required) {
     const labelMap: Record<number, string> = {
