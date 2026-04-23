@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSimulationStore } from '@/stores/simulation-store';
 import { PhaseIndicator } from '@/components/PhaseIndicator';
+import type { PhaseTabId } from '@/components/PhaseIndicator';
 import { ChatSidebar } from '@/components/ChatSidebar';
 import { RosterGrid } from '@/components/RosterGrid';
 
@@ -57,7 +58,18 @@ export default function SimulationPage() {
   const connectSSE = useSimulationStore((s) => s.connectSSE);
   const disconnect = useSimulationStore((s) => s.disconnect);
 
-  // Build agent name map from messages (characterId -> display name)
+  // Active phase tab — auto-follows currentPhase, but user can also click
+  const [activeTab, setActiveTab] = useState<PhaseTabId>(0);
+
+  // Auto-advance tab when phase changes
+  useEffect(() => {
+    if (currentPhase === 0) setActiveTab(0);
+    else if (currentPhase === 1) setActiveTab(1);
+    else if (currentPhase === 2) setActiveTab(2);
+    else if (currentPhase === 3) setActiveTab(3);
+  }, [currentPhase]);
+
+  // Build agent name map from messages
   const agentNames = useMemo(() => {
     const map = new Map<string, string>();
     messages.forEach((msgs) => {
@@ -95,18 +107,12 @@ export default function SimulationPage() {
     }
   }, [results, router]);
 
-  // Derive speaking agent from typing agents for active group
   const typingAgent = typingAgents.get(activeGroupTab) ?? null;
   const speakingAgentId = typingAgent?.agentId ?? null;
-
-  // Total member count across all groups
   const totalMembers = groups.reduce((acc, g) => acc + g.members.length, 0);
 
-  if (!simulationId) {
-    return null;
-  }
+  if (!simulationId) return null;
 
-  // Loading state: no groups yet
   if (groups.length === 0) {
     return (
       <div
@@ -115,11 +121,7 @@ export default function SimulationPage() {
       >
         <span
           className="font-mono uppercase"
-          style={{
-            fontSize: 13,
-            letterSpacing: 4,
-            color: 'var(--tk-cyan)',
-          }}
+          style={{ fontSize: 13, letterSpacing: 4, color: 'var(--tk-cyan)' }}
         >
           INITIALIZING...
         </span>
@@ -135,8 +137,12 @@ export default function SimulationPage() {
       {/* Status bar */}
       <StatusBar currentPhase={currentPhase} agentCount={totalMembers} />
 
-      {/* Phase indicator */}
-      <PhaseIndicator currentPhase={currentPhase} />
+      {/* Phase indicator — clickable tabs */}
+      <PhaseIndicator
+        currentPhase={currentPhase}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
 
       {/* Main content: roster + chat */}
       <div className="flex flex-1 overflow-hidden">
@@ -151,12 +157,12 @@ export default function SimulationPage() {
           />
         </div>
 
-        {/* Right panel: Chat Sidebar (~40%) */}
+        {/* Right panel: Chat Sidebar (~35%) */}
         <div
-          className="w-[35%] border-l"
+          className="w-[35%] border-l flex flex-col"
           style={{ borderColor: 'var(--rs-gray-dark)' }}
         >
-          <ChatSidebar />
+          <ChatSidebar activeTab={activeTab} />
         </div>
       </div>
     </div>
