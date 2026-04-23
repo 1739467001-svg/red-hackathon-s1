@@ -145,10 +145,16 @@ export class JudgeRunner {
     const scores: JudgeScore[] = await Promise.all(
       judgeList.map(async (judge) => {
         const scorePrompt = `请对这个项目打分和点评。
-评分维度（每项1-10分）：创新性、现场讲述效果、完成度、商业潜力、技术难度。
-请用以下JSON格式整理评分结果（游戏标准格式）：
-{"innovation":8,"presentation":7,"completeness":6,"businessPotential":8,"techDifficulty":7,"comment":"点评内容","suggestion":"改进建议"}
-只输出JSON。`;
+评分维度（每项1-10分）：创新性(innovation)、现场讲述效果(presentation)、完成度(completeness)、商业潜力(businessPotential)、技术难度(techDifficulty)。
+
+【重要】请根据项目实际表现给出有区分度的分数，不要所有维度都给相近的分数：
+- 优秀的方面可以给8-10分
+- 一般的方面给5-7分
+- 明显不足的方面给3-5分
+
+请用以下JSON格式输出（只输出JSON，不要其他内容）：
+{"innovation":8,"presentation":7,"completeness":6,"businessPotential":8,"techDifficulty":7,"comment":"100字以内的专业点评","suggestion":"50字以内的改进建议"}
+只输出JSON，不要markdown代码块。`;
         const scoreRaw = await this.llmService.chat(
           `${buildJudgeSystemPrompt(judge)}\n以这位评委的视角给出评分和专业点评，使用中文。`,
           [...history, { role: 'user', content: scorePrompt }],
@@ -164,7 +170,9 @@ export class JudgeRunner {
         });
 
         try {
-          const jsonMatch = scoreRaw.match(/\{[\s\S]*\}/);
+          // 支持 markdown 代码块包裹的 JSON
+          const cleaned = scoreRaw.replace(/```(?:json)?\n?/g, '').replace(/```/g, '').trim();
+          const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
           interface LlmScoreResponse {
             innovation?: number;
             presentation?: number;
@@ -175,7 +183,7 @@ export class JudgeRunner {
             suggestion?: string;
           }
           const parsed = (
-            jsonMatch ? JSON.parse(jsonMatch[0]) : {}
+            jsonMatch ? JSON.parse(jsonMatch[0]) : { comment: scoreRaw }
           ) as LlmScoreResponse;
           return {
             judgeId: judge.id,

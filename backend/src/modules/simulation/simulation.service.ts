@@ -172,15 +172,16 @@ export class SimulationService {
         onMessage,
         onTyping,
       );
+      // 总分 = 5个维度平均分的均值（满分10分）
       const totalScore =
         scores.reduce(
           (sum, s) =>
             sum +
-            s.innovation +
+            (s.innovation +
             s.presentation +
             s.completeness +
             s.businessPotential +
-            s.techDifficulty,
+            s.techDifficulty) / 5,
           0,
         ) / scores.length;
 
