@@ -297,7 +297,7 @@ function ResultPanel({ results }: { results: GroupResult[] }) {
           </div>
 
           {/* BP title */}
-          {r.bp?.projectName && (
+          {r.bpDocument?.projectName && (
             <p
               className="mb-2 truncate"
               style={{
@@ -306,23 +306,23 @@ function ResultPanel({ results }: { results: GroupResult[] }) {
                 fontSize: '0.8rem',
               }}
             >
-              {r.bp.projectName}
+              {r.bpDocument.projectName}
             </p>
           )}
 
           {/* Score dimensions */}
           {r.scores && r.scores.length > 0 && (
             <div className="space-y-1">
-              {['innovation', 'feasibility', 'impact', 'presentation', 'teamwork'].map((dim) => {
+              {['innovation', 'presentation', 'completeness', 'businessPotential', 'techDifficulty'].map((dim) => {
                 const avg =
                   r.scores.reduce((acc: number, s: { [key: string]: number }) => acc + (s[dim] ?? 0), 0) /
                   r.scores.length;
                 const dimLabels: Record<string, string> = {
                   innovation: '创新',
-                  feasibility: '可行',
-                  impact: '影响',
                   presentation: '展示',
-                  teamwork: '协作',
+                  completeness: '完整',
+                  businessPotential: '商业',
+                  techDifficulty: '技术',
                 };
                 return (
                   <div key={dim} className="flex items-center gap-2">
