@@ -315,7 +315,7 @@ function ResultPanel({ results }: { results: GroupResult[] }) {
             <div className="space-y-1">
               {['innovation', 'presentation', 'completeness', 'businessPotential', 'techDifficulty'].map((dim) => {
                 const avg =
-                  r.scores.reduce((acc: number, s: { [key: string]: number }) => acc + (s[dim] ?? 0), 0) /
+                  r.scores.reduce((acc: number, s) => acc + ((s as unknown as Record<string, number>)[dim] ?? 0), 0) /
                   r.scores.length;
                 const dimLabels: Record<string, string> = {
                   innovation: '创新',
