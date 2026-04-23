@@ -429,7 +429,7 @@ export function ChatSidebar({ activeTab }: ChatSidebarProps) {
   const groupIds = groups.length > 0 ? groups.map((g) => g.groupId) : [];
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const [lastSeenCounts, setLastSeenCounts] = useState<Record<number, number>>({});
+  const [lastSeenCounts, setLastSeenCounts] = useState<Record<string, number>>({});
 
   const getMessagesForGroup = useCallback(
     (groupId: number): SimulationMessage[] => messages.get(groupId) ?? [],
