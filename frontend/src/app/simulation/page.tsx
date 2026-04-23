@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSimulationStore } from '@/stores/simulation-store';
 import { PhaseIndicator } from '@/components/PhaseIndicator';
@@ -60,17 +60,21 @@ export default function SimulationPage() {
   const connectSSE = useSimulationStore((s) => s.connectSSE);
   const disconnect = useSimulationStore((s) => s.disconnect);
 
-  // Active phase tab — auto-follows currentPhase, but user can also click
+  // Active phase tab — auto-follows currentPhase on every phase advance
   const [activeTab, setActiveTab] = useState<PhaseTabId>(0);
 
-  // Auto-advance tab when phase changes
+  // Track the last phase we auto-switched to, so we can detect genuine phase advances
+  const lastAutoPhaseRef = useRef<number>(-1);
+
+  // Auto-advance tab whenever currentPhase increases (phase_change event)
+  // This always fires on a new phase, regardless of whether user manually clicked a tab
   useEffect(() => {
-    if (currentPhase === 0) setActiveTab(0);
-    else if (currentPhase === 1) setActiveTab(1);
-    else if (currentPhase === 2) setActiveTab(2);
-    else if (currentPhase === 3) setActiveTab(3);
-    else if (currentPhase === 4) setActiveTab(4);
-    else if (currentPhase === 5) setActiveTab(5);
+    if (currentPhase !== lastAutoPhaseRef.current) {
+      lastAutoPhaseRef.current = currentPhase;
+      // Map backend phase number directly to tab id (they are 1:1)
+      const tabId = Math.min(currentPhase, 5) as PhaseTabId;
+      setActiveTab(tabId);
+    }
   }, [currentPhase]);
 
   // Build agent name map from messages
@@ -104,8 +108,12 @@ export default function SimulationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [simulationId]);
 
-  // Navigate to results when simulation completes (only after phase 5 public announcement)
-  // We stay on simulation page during phase 5 to show ranking, only navigate on explicit user action
+  // Handle user manually clicking a tab (allow browsing history)
+  // When user clicks, we update activeTab but do NOT update lastAutoPhaseRef,
+  // so the next phase_change will still force-switch to the new phase.
+  const handleTabChange = (tab: PhaseTabId) => {
+    setActiveTab(tab);
+  };
 
   const typingAgent = typingAgents.get(activeGroupTab) ?? null;
   const speakingAgentId = typingAgent?.agentId ?? null;
@@ -141,7 +149,7 @@ export default function SimulationPage() {
       <PhaseIndicator
         currentPhase={currentPhase}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
       />
 
       {/* Main content: roster + chat */}
