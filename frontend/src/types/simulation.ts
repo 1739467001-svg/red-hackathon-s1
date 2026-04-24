@@ -1,5 +1,5 @@
 export interface SimulationMessage {
-  type: 'message' | 'phase_change' | 'complete' | 'tool_call' | 'error';
+  type: 'message' | 'phase_change' | 'complete' | 'tool_call' | 'error' | 'score';
   groupId?: number;
   agent?: {
     id: string;

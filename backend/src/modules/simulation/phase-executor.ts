@@ -19,7 +19,7 @@ export interface AgentIdentity {
 }
 
 export type MessageCallback = (
-  msg: AgentIdentity & { content: string; phase: number },
+  msg: AgentIdentity & { content: string; phase: number; type?: string },
 ) => Promise<void>;
 
 export type TypingCallback = (

@@ -159,16 +159,8 @@ export class JudgeRunner {
           `${buildJudgeSystemPrompt(judge)}\n以这位评委的视角给出评分和专业点评，使用中文。`,
           [...history, { role: 'user', content: scorePrompt }],
         );
-        await onMessage({
-          groupId: group.groupId,
-          agentId: judge.id,
-          agentName: judge.name,
-          agentRole: JUDGE_ROLE,
-          isLeader: false,
-          content: scoreRaw,
-          phase: 4,
-        });
 
+        let scoreData: JudgeScore;
         try {
           // 支持 markdown 代码块包裹的 JSON
           const cleaned = scoreRaw.replace(/```(?:json)?\n?/g, '').replace(/```/g, '').trim();
@@ -185,7 +177,7 @@ export class JudgeRunner {
           const parsed = (
             jsonMatch ? JSON.parse(jsonMatch[0]) : { comment: scoreRaw }
           ) as LlmScoreResponse;
-          return {
+          scoreData = {
             judgeId: judge.id,
             judgeName: judge.name,
             innovation: parsed.innovation || 5,
@@ -197,7 +189,7 @@ export class JudgeRunner {
             suggestion: parsed.suggestion || '',
           };
         } catch {
-          return {
+          scoreData = {
             judgeId: judge.id,
             judgeName: judge.name,
             innovation: 5,
@@ -209,6 +201,20 @@ export class JudgeRunner {
             suggestion: '',
           };
         }
+
+        // 发送结构化评分消息（type: score），前端渲染为评分卡片
+        await onMessage({
+          groupId: group.groupId,
+          agentId: judge.id,
+          agentName: judge.name,
+          agentRole: JUDGE_ROLE,
+          isLeader: false,
+          content: JSON.stringify(scoreData),
+          type: 'score',
+          phase: 4,
+        });
+
+        return scoreData;
       }),
     );
 

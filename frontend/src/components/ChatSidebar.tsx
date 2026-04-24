@@ -10,6 +10,146 @@ import type { RankingEntry } from '@/stores/simulation-store';
 import { useRouter } from 'next/navigation';
 
 /* ------------------------------------------------------------------ */
+/*  Score Card (for judge scoring messages)                            */
+/* ------------------------------------------------------------------ */
+
+interface ScoreCardProps {
+  msg: SimulationMessage;
+}
+
+function ScoreCard({ msg }: ScoreCardProps) {
+  const agent = msg.agent;
+  if (!agent || !msg.content) return null;
+
+  let score: {
+    judgeId?: string;
+    judgeName?: string;
+    innovation?: number;
+    presentation?: number;
+    completeness?: number;
+    businessPotential?: number;
+    techDifficulty?: number;
+    comment?: string;
+    suggestion?: string;
+  } = {};
+  try {
+    score = JSON.parse(msg.content);
+  } catch {
+    return null;
+  }
+
+  const dimensions = [
+    { key: 'innovation', label: '创新性', value: score.innovation ?? 5 },
+    { key: 'presentation', label: '讲述效果', value: score.presentation ?? 5 },
+    { key: 'completeness', label: '完成度', value: score.completeness ?? 5 },
+    { key: 'businessPotential', label: '商业潜力', value: score.businessPotential ?? 5 },
+    { key: 'techDifficulty', label: '技术难度', value: score.techDifficulty ?? 5 },
+  ];
+  const avg = dimensions.reduce((s, d) => s + d.value, 0) / dimensions.length;
+
+  return (
+    <div
+      className="px-3 py-3"
+      style={{ borderBottom: '1px solid var(--tk-cyan-10)', backgroundColor: 'rgba(255,60,120,0.04)' }}
+    >
+      {/* Judge header */}
+      <div className="flex items-center gap-2 mb-3">
+        <div
+          className="h-8 w-8 shrink-0 overflow-hidden"
+          style={{ border: '1px solid var(--tk-pink)', borderRadius: '0px' }}
+        >
+          <img src={agent.avatar || getAvatarUrl(agent.id)} alt={agent.name} className="h-full w-full object-cover" />
+        </div>
+        <span style={{ fontFamily: 'var(--rs-font-display)', color: 'var(--tk-pink)', fontSize: '1rem', fontWeight: 'bold' }}>
+          {agent.name}
+        </span>
+        <span
+          className="px-1.5 py-0.5"
+          style={{
+            fontFamily: 'var(--rs-font-mono)',
+            background: 'rgba(255,60,120,0.2)',
+            color: 'var(--tk-pink)',
+            fontSize: '0.6rem',
+            letterSpacing: '1px',
+            borderRadius: '0px',
+            border: '1px solid var(--tk-pink)',
+          }}
+        >
+          评委评分
+        </span>
+        <span
+          className="ml-auto font-bold tabular-nums"
+          style={{
+            fontFamily: 'var(--rs-font-mono)',
+            color: avg >= 7 ? 'var(--tk-cyan)' : avg >= 5 ? '#f0c040' : 'var(--tk-pink)',
+            fontSize: '1.1rem',
+          }}
+        >
+          {avg.toFixed(1)}
+          <span style={{ fontSize: '0.65rem', color: 'var(--rs-gray)', marginLeft: '2px' }}>/10</span>
+        </span>
+      </div>
+
+      {/* Score bars */}
+      <div className="space-y-1.5 mb-3">
+        {dimensions.map((d) => (
+          <div key={d.key} className="flex items-center gap-2">
+            <span
+              className="w-16 shrink-0 text-right"
+              style={{ fontFamily: 'var(--rs-font-mono)', fontSize: '0.65rem', color: 'var(--rs-gray)', letterSpacing: '1px' }}
+            >
+              {d.label}
+            </span>
+            <div className="flex-1 h-1.5" style={{ backgroundColor: 'var(--tk-cyan-10)' }}>
+              <div
+                className="h-full transition-all duration-500"
+                style={{
+                  width: `${d.value * 10}%`,
+                  backgroundColor: d.value >= 8 ? 'var(--tk-cyan)' : d.value >= 6 ? '#f0c040' : 'var(--tk-pink)',
+                }}
+              />
+            </div>
+            <span
+              className="w-6 shrink-0 tabular-nums text-right"
+              style={{ fontFamily: 'var(--rs-font-mono)', fontSize: '0.75rem', color: 'var(--tk-cyan)' }}
+            >
+              {d.value}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Comment */}
+      {score.comment && (
+        <div
+          className="px-2 py-1.5 mb-2 text-sm"
+          style={{
+            fontFamily: 'var(--rs-font-body)',
+            color: 'rgba(255,255,255,0.85)',
+            backgroundColor: 'rgba(255,60,120,0.08)',
+            borderLeft: '2px solid var(--tk-pink)',
+            fontSize: '0.8rem',
+            lineHeight: '1.5',
+          }}
+        >
+          {score.comment}
+        </div>
+      )}
+
+      {/* Suggestion */}
+      {score.suggestion && (
+        <div
+          className="text-xs"
+          style={{ fontFamily: 'var(--rs-font-mono)', color: 'var(--rs-gray)', fontSize: '0.7rem' }}
+        >
+          建议：{score.suggestion}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Message Item                                                        */
 /* ------------------------------------------------------------------ */
 
@@ -18,6 +158,11 @@ interface MessageItemProps {
 }
 
 function MessageItem({ msg }: MessageItemProps) {
+  // 评分消息单独渲染为卡片
+  if (msg.type === 'score') {
+    return <ScoreCard msg={msg} />;
+  }
+
   const agent = msg.agent;
   if (!agent || !msg.content) return null;
 
@@ -788,7 +933,7 @@ export function ChatSidebar({ activeTab }: ChatSidebarProps) {
         ) : (
           <>
             {currentMessages
-              .filter((m) => (m.type === 'message' || m.type === 'tool_call') && m.content)
+              .filter((m) => (m.type === 'message' || m.type === 'tool_call' || m.type === 'score') && m.content)
               .map((msg, idx) =>
                 msg.type === 'tool_call' ? (
                   <div

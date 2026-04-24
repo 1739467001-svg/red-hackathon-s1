@@ -198,6 +198,24 @@ export const useSimulationStore = create<SimulationState>((set, get) => ({
               }
             }
             break;
+          case 'score': {
+            // Judge scoring message - store as structured score message
+            const scoreMsg: SimulationMessage = {
+              type: 'score',
+              groupId: raw.groupId,
+              phase: raw.phase,
+              content: raw.content,
+              agent: {
+                id: raw.agentId ?? raw.agent?.id ?? '',
+                name: raw.agentName ?? raw.agent?.name ?? '',
+                avatar: getAvatarUrl(raw.agentId ?? ''),
+                role: raw.agentRole ?? raw.agent?.role ?? '评委',
+                isLeader: false,
+              },
+            };
+            get().addMessage(scoreMsg);
+            break;
+          }
           case 'ranking': {
             if (raw.ranking) {
               get().setRanking(raw.ranking as RankingEntry[]);

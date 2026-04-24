@@ -85,9 +85,9 @@ export class SimulationService {
     const onMessage: MessageCallback = async (msg) => {
       // Save to DB
       await this.messageRepo.save({ simulationId, ...msg });
-      // Push to SSE
+      // Push to SSE - use msg.type if provided (e.g. 'score'), otherwise default to 'message'
       subject?.next({
-        data: JSON.stringify({ type: 'message', ...msg }),
+        data: JSON.stringify({ type: msg.type || 'message', ...msg }),
       });
     };
 
